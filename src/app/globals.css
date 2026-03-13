@@ -1,0 +1,394 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --brand-dark: #1b4332;
+  --brand-mid: #2a5d49;
+  --brand-light: #e4f1eb;
+  --brand-surface: #f6fbf9;
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.45);
+  --glass-shadow: 0 8px 32px rgba(27, 67, 50, 0.08);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* ─── Admin Shell Modern Styles ─── */
+
+.admin-shell.panel-page {
+  min-height: 100vh;
+  background: linear-gradient(145deg, #f0f7f3 0%, #f8faf9 40%, #fdfefe 70%, #faf6e8 100%);
+}
+
+.admin-shell .panel-shell {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.admin-shell .panel-grid {
+  max-width: 1700px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.admin-shell .dashboard-frame {
+  align-items: stretch;
+}
+
+.admin-shell .dashboard-sidebar-col {
+  display: flex;
+}
+
+.admin-shell .dashboard-main-col {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Sidebar ─── */
+
+.admin-shell .panel-sidebar {
+  top: 1rem;
+  width: 100%;
+  min-height: calc(100vh - 2rem);
+  display: flex;
+  flex-direction: column;
+  background: var(--glass-bg);
+  backdrop-filter: blur(18px) saturate(1.6);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6);
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--glass-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  overflow: hidden;
+}
+
+.admin-shell .sidebar-top {
+  position: relative;
+}
+
+.admin-shell .sidebar-top::before {
+  content: "";
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(27, 67, 50, 0.06) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.admin-shell .sidebar-actions {
+  margin-top: auto;
+  border-top: 1px solid rgba(27, 67, 50, 0.08);
+  background: rgba(246, 251, 249, 0.5);
+}
+
+.admin-shell .sidebar-label {
+  color: #6b7f74;
+  letter-spacing: 0.1em;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+.admin-shell .sidebar-nav {
+  display: grid;
+  gap: 6px;
+}
+
+.admin-shell .sidebar-btn {
+  width: 100%;
+  border: 1px solid rgba(27, 67, 50, 0.1);
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 12px;
+  text-align: left;
+  padding: 11px 14px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--brand-dark);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  line-height: 1.2;
+  text-decoration: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.admin-shell .sidebar-btn::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--brand-dark);
+  border-radius: 0 3px 3px 0;
+  transform: scaleY(0);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.admin-shell .sidebar-btn i {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: rgba(27, 67, 50, 0.06);
+  font-size: 0.85rem;
+  color: var(--brand-mid);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+}
+
+.admin-shell .sidebar-btn:hover {
+  background: rgba(228, 241, 235, 0.6);
+  border-color: rgba(27, 67, 50, 0.15);
+  color: var(--brand-dark);
+  transform: translateX(2px);
+}
+
+.admin-shell .sidebar-btn:hover::before {
+  transform: scaleY(0.6);
+}
+
+.admin-shell .sidebar-btn:hover i {
+  background: rgba(27, 67, 50, 0.1);
+}
+
+.admin-shell .sidebar-btn.active {
+  background: linear-gradient(135deg, #1b4332 0%, #264f3e 100%);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 6px 20px rgba(27, 67, 50, 0.25), 0 2px 6px rgba(27, 67, 50, 0.15);
+}
+
+.admin-shell .sidebar-btn.active::before {
+  transform: scaleY(0);
+}
+
+.admin-shell .sidebar-btn.active i {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
+/* ─── User Chip & Role Pill ─── */
+
+.admin-shell .user-chip {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 1rem;
+  background: linear-gradient(135deg, #1b4332 0%, #2a5d49 100%);
+  color: #fff;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 12px rgba(27, 67, 50, 0.2);
+}
+
+.admin-shell .role-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  background: linear-gradient(135deg, #e4f1eb 0%, #d3ece1 100%);
+  border: 1px solid rgba(27, 67, 50, 0.12);
+  color: var(--brand-dark);
+}
+
+.admin-shell .role-pill::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #27ae60;
+  box-shadow: 0 0 0 2px rgba(39, 174, 96, 0.2);
+}
+
+/* ─── Topbar ─── */
+
+.admin-shell .dashboard-topbar {
+  border-color: rgba(27, 67, 50, 0.08) !important;
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(12px) saturate(1.4);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  box-shadow: 0 2px 12px rgba(27, 67, 50, 0.04);
+}
+
+.admin-shell .topbar-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #27ae60 0%, #1b4332 100%);
+  box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.15);
+  animation: topbarPulse 3s ease-in-out infinite;
+}
+
+@keyframes topbarPulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.15);
+  }
+
+  50% {
+    box-shadow: 0 0 0 5px rgba(39, 174, 96, 0.08);
+  }
+}
+
+/* ─── Modern Cards ─── */
+
+.admin-shell .card {
+  border: 1px solid rgba(27, 67, 50, 0.08) !important;
+  box-shadow: 0 1px 3px rgba(27, 67, 50, 0.04);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ─── Modern Form Controls ─── */
+
+.admin-shell .form-control:focus,
+.admin-shell .form-select:focus {
+  border-color: rgba(27, 67, 50, 0.3);
+  box-shadow: 0 0 0 3px rgba(27, 67, 50, 0.08);
+}
+
+.admin-shell .form-label {
+  font-weight: 600;
+  font-size: 0.82rem;
+  color: #3a5a4a;
+  letter-spacing: 0.02em;
+}
+
+/* ─── Modern Table ─── */
+
+.admin-shell .table thead th {
+  background: linear-gradient(180deg, #f4f9f6 0%, #eef5f1 100%);
+  border-bottom: 2px solid rgba(27, 67, 50, 0.1);
+  color: #3a5a4a;
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 14px 16px;
+}
+
+.admin-shell .table tbody tr {
+  transition: background-color 0.2s ease;
+}
+
+.admin-shell .table tbody tr:hover {
+  background-color: rgba(228, 241, 235, 0.35);
+}
+
+.admin-shell .table tbody td {
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(27, 67, 50, 0.05);
+  font-size: 0.9rem;
+}
+
+/* ─── Modern Buttons ─── */
+
+.admin-shell .btn-success {
+  background: linear-gradient(135deg, #1b4332 0%, #2a5d49 100%);
+  border: none;
+  box-shadow: 0 2px 8px rgba(27, 67, 50, 0.2);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.admin-shell .btn-success:hover {
+  background: linear-gradient(135deg, #163b2b 0%, #234e3e 100%);
+  box-shadow: 0 4px 16px rgba(27, 67, 50, 0.3);
+  transform: translateY(-1px);
+}
+
+.admin-shell .btn-outline-success {
+  color: var(--brand-dark);
+  border-color: rgba(27, 67, 50, 0.2);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.admin-shell .btn-outline-success:hover {
+  background: var(--brand-dark);
+  border-color: var(--brand-dark);
+  box-shadow: 0 4px 14px rgba(27, 67, 50, 0.2);
+  transform: translateY(-1px);
+}
+
+.admin-shell .btn-danger {
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+  border: none;
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.2);
+}
+
+.admin-shell .btn-danger:hover {
+  box-shadow: 0 4px 16px rgba(220, 53, 69, 0.3);
+  transform: translateY(-1px);
+}
+
+/* ─── Stat Cards ─── */
+
+.admin-shell .stat-card {
+  border-radius: 16px !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  color: #1f2d26;
+  border: 1px solid rgba(27, 67, 50, 0.06) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.admin-shell .stat-card::after {
+  content: "";
+  position: absolute;
+  top: -20px;
+  right: -20px;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: rgba(27, 67, 50, 0.04);
+  pointer-events: none;
+}
+
+.admin-shell .stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 32px rgba(27, 67, 50, 0.12), 0 4px 8px rgba(27, 67, 50, 0.06);
+}
+
+/* ─── Responsive ─── */
+
+@media (max-width: 991px) {
+  .admin-shell .panel-sidebar {
+    position: static !important;
+    min-height: auto;
+  }
+}
+
+@media (min-width: 1200px) {
+  .admin-shell .panel-shell {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
