@@ -28,6 +28,7 @@ function initials(name: string) {
 export default function AdminShell({ children }: AdminShellProps) {
   const pathname = usePathname();
   const [sessionUser, setSessionUser] = useState<SessionUser | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
@@ -71,7 +72,7 @@ export default function AdminShell({ children }: AdminShellProps) {
   ];
 
   return (
-    <main className="admin-shell panel-page py-4 py-md-5">
+    <main className="admin-shell panel-page pt-0 pt-md-4 pb-4 pb-md-5 mt-4">
       <div className="container-fluid panel-shell position-relative">
         {!isReady ? (
           <div className="card border shadow-sm p-4 p-md-5 text-center rounded-4 bg-white">
@@ -115,8 +116,22 @@ export default function AdminShell({ children }: AdminShellProps) {
           </div>
         ) : (
           <div className="row g-4 align-items-start panel-grid dashboard-frame">
-            <div className="col-12 col-xl-2 col-lg-3 dashboard-sidebar-col">
+            {/* Sidebar Overlay for Mobile */}
+            {isSidebarOpen && (
+              <div
+                className="sidebar-overlay d-lg-none"
+                onClick={() => setIsSidebarOpen(false)}
+              ></div>
+            )}
+
+            <div className={`col-12 col-xl-3 col-lg-4 dashboard-sidebar-col ${isSidebarOpen ? 'sidebar-reveal' : ''}`}>
               <aside className="panel-sidebar card border rounded-4 sticky-lg-top shadow-sm">
+                <div className="sidebar-header p-3 d-lg-none d-flex justify-content-between align-items-center border-bottom">
+                  <span className="fw-bold text-success">Menu</span>
+                  <button className="btn btn-sm btn-light border-0" onClick={() => setIsSidebarOpen(false)}>
+                    <i className="fa-solid fa-xmark fs-5"></i>
+                  </button>
+                </div>
                 <div className="sidebar-top p-4 border-bottom">
                   <p className="small text-uppercase mb-2 sidebar-label">Admin Panel</p>
                   <h3 className="h6 fw-bold mb-3" style={{ color: "#1b4332" }}>Navigation</h3>
@@ -126,9 +141,10 @@ export default function AdminShell({ children }: AdminShellProps) {
                         key={item.href}
                         href={item.href}
                         className={`sidebar-btn text-decoration-none ${pathname === item.href ? "active" : ""}`}
+                        onClick={() => setIsSidebarOpen(false)}
                       >
-                        <i className={`fa-solid ${item.icon}`}></i>
-                        <span>{item.label}</span>
+                        <i className={`fa-solid ${item.icon} flex-shrink-0`}></i>
+                        <span className="text-truncate">{item.label}</span>
                       </Link>
                     ))}
                   </nav>
@@ -161,10 +177,17 @@ export default function AdminShell({ children }: AdminShellProps) {
               </aside>
             </div>
 
-            <div className="col-12 col-xl-10 col-lg-9 dashboard-main-col">
+            <div className="col-12 col-xl-9 col-lg-8 dashboard-main-col">
               <header className="dashboard-topbar card border shadow-sm rounded-4 mb-4 px-3 px-md-4 py-3">
                 <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
                   <div className="d-flex align-items-center gap-2">
+                    <button
+                      className="btn btn-light d-lg-none me-2 border-0 shadow-sm"
+                      onClick={() => setIsSidebarOpen(true)}
+                      aria-label="Open Menu"
+                    >
+                      <i className="fa-solid fa-bars-staggered text-success fs-5"></i>
+                    </button>
                     <span className="topbar-dot"></span>
                     <span className="fw-semibold" style={{ color: "#1b4332" }}>{pageTitle}</span>
                   </div>

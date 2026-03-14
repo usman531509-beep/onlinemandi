@@ -867,6 +867,32 @@ export default function Home() {
           .detail-thumb-grid {
             grid-template-columns: repeat(3, minmax(0, 1fr));
           }
+          .hero-title {
+            font-size: 2.5rem !important;
+          }
+        }
+
+        @media (max-width: 767px) {
+          .hero {
+            padding: 80px 0 60px;
+            text-align: center;
+          }
+          .hero-title {
+            font-size: 2rem !important;
+          }
+          .hero-subtitle {
+            font-size: 1.1rem !important;
+          }
+          .category-card {
+            padding: 15px 10px;
+          }
+          .category-card i {
+            font-size: 2rem !important;
+            margin-bottom: 8px;
+          }
+          .pricing-card .display-5 {
+            font-size: 2.5rem;
+          }
         }
 
         @media (prefers-reduced-motion: reduce) {

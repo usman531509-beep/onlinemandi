@@ -707,13 +707,15 @@ function UsersContent({ sessionUser }: { sessionUser: SessionUser }) {
                     <div className="d-flex flex-wrap gap-3">
                       {selectedSellerProfile.sellerProfile.documents.map((document, index) => {
                         const isImage = document.fileUrl.startsWith("data:image/") || document.fileUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i);
+                        const isIdDoc = document.name === "CNIC Front" || document.name === "CNIC Back";
+
                         return isImage ? (
                           <div
                             key={`${document.fileUrl}-${index}`}
                             role="button"
                             tabIndex={0}
                             onClick={() => setSelectedPreviewImage(document.fileUrl)}
-                            className="text-decoration-none border rounded-3 p-2 document-preview-card"
+                            className={`text-decoration-none border rounded-3 p-2 document-preview-card ${isIdDoc ? 'border-success bg-success bg-opacity-10' : ''}`}
                             style={{ width: 140, cursor: "pointer", transition: "transform 0.15s ease" }}
                           >
                             <Image
@@ -725,7 +727,7 @@ function UsersContent({ sessionUser }: { sessionUser: SessionUser }) {
                               height={90}
                               unoptimized
                             />
-                            <div className="small text-truncate text-center mt-2 text-dark" title={document.name}>
+                            <div className={`small text-truncate text-center mt-2 ${isIdDoc ? 'fw-bold text-success' : 'text-dark'}`} title={document.name}>
                               {document.name}
                             </div>
                           </div>

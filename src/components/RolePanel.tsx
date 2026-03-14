@@ -209,6 +209,9 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [profileMessage, setProfileMessage] = useState("");
   const [verificationStatus, setVerificationStatus] = useState<VerificationStatus>("unsubmitted");
+  const [idFront, setIdFront] = useState<string | null>(null);
+  const [idBack, setIdBack] = useState<string | null>(null);
+  const [isUploadingId, setIsUploadingId] = useState({ front: false, back: false });
 
   const [broadcasts, setBroadcasts] = useState<BroadcastItem[]>([]);
   const [isLoadingBroadcasts, setIsLoadingBroadcasts] = useState(false);
@@ -413,7 +416,15 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
         city: data.profile.city || "",
         notes: data.profile.notes || "",
       });
-      setProfileDocs(data.profile.documents || []);
+
+      // Separate ID docs from general docs
+      const docs = data.profile.documents || [];
+      const front = docs.find(d => d.name === "CNIC Front");
+      const back = docs.find(d => d.name === "CNIC Back");
+      setIdFront(front?.fileUrl || null);
+      setIdBack(back?.fileUrl || null);
+
+      setProfileDocs(docs.filter(d => d.name !== "CNIC Front" && d.name !== "CNIC Back"));
     } catch {
       setProfileMessage("Network error while loading profile.");
     } finally {
@@ -481,30 +492,34 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
       void loadSellerProfile();
     }
 
-    if (activeTab === "categories" && canManageCategories) {
+    // Load categories for broadcastings and category management
+    if ((activeTab === "broadcastings" || activeTab === "categories") && (canManageCategories || true)) {
       void loadCategories();
     }
 
     if (activeTab === "broadcastings") {
       void loadBroadcasts();
-      void loadCategories();
     }
 
     if (activeTab === "payments") {
       void loadPayments();
     }
+  }, [activeTab, canManageCategories, loadCategories, loadListings, loadSellerProfile, loadBroadcasts, loadPayments, role, sessionUser]);
 
-    // Load subscription info on overview
-    if (activeTab === "overview" && sessionUser?.email) {
+  // Dedicated useEffect for subscription and usage info
+  useEffect(() => {
+    if (isSessionReady && sessionUser?.email) {
       fetch(`/api/user/subscription?email=${encodeURIComponent(sessionUser.email)}`)
         .then(r => r.json())
         .then(data => { if (data.ok) setActiveSubscription(data.subscription); })
         .catch(() => { });
-      // Also load usage counts
+
+      // Load usage counts
       fetch(`/api/listings?role=${sessionUser.role}&userId=${sessionUser.id}`)
         .then(r => r.json())
         .then(data => { if (data.ok) setListingCount(data.listings?.length || 0); })
         .catch(() => { });
+
       if (role === "buyer") {
         fetch(`/api/broadcasts?userId=${sessionUser.id}`)
           .then(r => r.json())
@@ -512,7 +527,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
           .catch(() => { });
       }
     }
-  }, [activeTab, canManageCategories, loadCategories, loadListings, loadSellerProfile, loadBroadcasts, loadPayments, role, sessionUser]);
+  }, [isSessionReady, sessionUser, role]);
 
   const onCreateListingImagesChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
@@ -580,6 +595,14 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
     setProfileMessage("");
 
     try {
+      const finalDocuments = [
+        ...(idFront ? [{ name: "CNIC Front", fileUrl: idFront }] : []),
+        ...(idBack ? [{ name: "CNIC Back", fileUrl: idBack }] : []),
+        ...profileDocs
+          .filter(doc => doc.name !== "CNIC Front" && doc.name !== "CNIC Back")
+          .map((doc) => ({ name: doc.name, fileUrl: doc.fileUrl })),
+      ];
+
       const response = await fetch("/api/users/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -592,7 +615,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
           address: profileForm.address,
           city: profileForm.city,
           notes: profileForm.notes,
-          documents: profileDocs.map((doc) => ({ name: doc.name, fileUrl: doc.fileUrl })),
+          documents: finalDocuments,
         }),
       });
 
@@ -616,7 +639,15 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
           city: data.profile.city || "",
           notes: data.profile.notes || "",
         });
-        setProfileDocs(data.profile.documents || []);
+
+        // Separate ID docs from general docs
+        const docs = data.profile.documents || [];
+        const front = docs.find(d => d.name === "CNIC Front");
+        const back = docs.find(d => d.name === "CNIC Back");
+        setIdFront(front?.fileUrl || null);
+        setIdBack(back?.fileUrl || null);
+
+        setProfileDocs(docs.filter(d => d.name !== "CNIC Front" && d.name !== "CNIC Back"));
       }
       setVerificationStatus(data.verificationStatus || "pending");
       await loadSellerProfile();
@@ -934,7 +965,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
         ];
 
   return (
-    <main className="panel-page py-4 py-md-5">
+    <main className="panel-page pt-0 pt-md-4 pb-4 pb-md-5">
       <div className="container-fluid panel-shell position-relative">
         {!isSessionReady ? (
           <div className="card border shadow-sm p-4 p-md-5 text-center rounded-4 bg-white">
@@ -963,9 +994,23 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
             </div>
           </div>
         ) : (
-          <div className="row g-4 align-items-start panel-grid dashboard-frame">
-            <div className="col-12 col-xl-2 col-lg-3 dashboard-sidebar-col">
-              <aside className={`panel-sidebar panel-sidebar-${role} card border rounded-4 sticky-lg-top bg-white shadow-sm`}>
+          <div className="row g-4 align-items-start panel-grid pt-lg-4">
+            {/* Sidebar Overlay for Mobile */}
+            {isSidebarOpen && (
+              <div
+                className="sidebar-overlay d-lg-none"
+                onClick={() => setIsSidebarOpen(false)}
+              ></div>
+            )}
+
+            <div className={`col-12 col-xl-3 col-lg-4 dashboard-sidebar-col ${isSidebarOpen ? 'sidebar-reveal' : ''}`}>
+              <aside className={`panel-sidebar panel-sidebar-${role} card border rounded-4 sticky-lg-top bg-white shadow-sm ${isSidebarOpen ? 'show' : ''}`}>
+                <div className="sidebar-header p-3 d-lg-none d-flex justify-content-between align-items-center border-bottom">
+                  <span className="fw-bold text-success">Menu</span>
+                  <button className="btn btn-sm btn-light border-0" onClick={() => setIsSidebarOpen(false)}>
+                    <i className="fa-solid fa-xmark fs-5"></i>
+                  </button>
+                </div>
                 <div className="sidebar-top p-4 border-bottom">
                   <p className="small text-uppercase mb-2 sidebar-label">{role} panel</p>
                   <h3 className="h6 fw-bold mb-3">Navigation</h3>
@@ -980,11 +1025,12 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                             router.push(item.href);
                           } else {
                             setActiveTab(item.id as PanelTab);
+                            setIsSidebarOpen(false); // Close on mobile after click
                           }
                         }}
                       >
-                        <i className={item.icon}></i>
-                        <span>{item.label}</span>
+                        <i className={`${item.icon} flex-shrink-0`}></i>
+                        <span className="text-truncate">{item.label}</span>
                       </button>
                     ))}
                   </nav>
@@ -1017,11 +1063,18 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
               </aside>
             </div>
 
-            <div className="col-12 col-xl-10 col-lg-9 dashboard-main-col">
+            <div className="col-12 col-xl-9 col-lg-8 dashboard-main-col">
               <header className="dashboard-topbar card border shadow-sm rounded-4 bg-white mb-4 px-3 px-md-4 py-3">
                 <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
                   <div className="d-flex align-items-center gap-2">
-                    <span className="topbar-dot"></span>
+                    <button
+                      className="btn btn-light d-lg-none me-2 border-0 shadow-sm"
+                      onClick={() => setIsSidebarOpen(true)}
+                      aria-label="Open Menu"
+                    >
+                      <i className="fa-solid fa-bars-staggered text-success fs-5"></i>
+                    </button>
+                    <span className="topbar-dot d-none d-sm-inline-block"></span>
                     <span className="fw-semibold text-capitalize">
                       {activeTab === "overview"
                         ? "Dashboard"
@@ -1037,9 +1090,9 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                     </span>
                   </div>
                   <div className="d-flex align-items-center gap-3 small text-muted">
-                    <i className="fa-solid fa-rotate-right"></i>
-                    <span>{sessionUser.fullName}</span>
-                    <span className="fw-semibold text-capitalize">{sessionUser.role}</span>
+                    <i className="fa-solid fa-rotate-right d-none d-md-inline"></i>
+                    <span className="d-none d-sm-inline">{sessionUser.fullName}</span>
+                    <span className="fw-semibold text-capitalize bg-light px-2 py-1 rounded-2 border">{sessionUser.role}</span>
                   </div>
                 </div>
               </header>
@@ -1183,7 +1236,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                       <div className="d-flex gap-2 flex-wrap">
                         {canCreateListing && (
                           <button className="btn btn-success" onClick={() => {
-                            if (activeSubscription) {
+                            if (activeSubscription || role === "admin") {
                               setShowCreateListingModal(true);
                             } else {
                               setShowUpgradeModal(true);
@@ -1685,6 +1738,68 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                             onChange={(event) => setProfileForm((prev) => ({ ...prev, address: event.target.value }))}
                           />
                         </div>
+                        <div className="col-12 mt-2">
+                          <label className="form-label small text-muted mb-2 fw-semibold">
+                            <i className="fa-solid fa-id-card me-2 text-success"></i>CNIC / Identity Card Verification
+                          </label>
+                          <div className="row g-3">
+                            <div className="col-md-6">
+                              <div className="id-upload-box card border shadow-sm rounded-4 p-3 h-100 bg-white">
+                                <p className="small text-muted mb-3 fw-medium">CNIC Front Image</p>
+                                {idFront ? (
+                                  <div className="position-relative mb-3">
+                                    <Image src={idFront} alt="ID Front" className="img-fluid rounded-3 border" style={{ maxHeight: '150px', width: '100%', objectFit: 'cover' }} width={300} height={150} unoptimized />
+                                    <button type="button" className="btn btn-sm btn-danger position-absolute top-0 end-0 m-2 rounded-circle shadow-sm" style={{ width: 28, height: 28, padding: 0 }} onClick={() => setIdFront(null)}>
+                                      <i className="fa-solid fa-times small"></i>
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="id-placeholder rounded-3 border border-dashed p-4 text-center bg-light-subtle d-flex flex-column align-items-center justify-content-center mb-0" style={{ minHeight: '120px' }}>
+                                    <i className="fa-solid fa-camera fa-2x text-muted mb-2 opacity-50"></i>
+                                    <label className="btn btn-outline-success btn-sm stretched-link" style={{ cursor: 'pointer' }}>
+                                      Upload Front
+                                      <input type="file" className="d-none" accept="image/*" onChange={async (e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                          const urls = await filesToDataUrls([file]);
+                                          setIdFront(urls[0]);
+                                        }
+                                      }} />
+                                    </label>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="col-md-6">
+                              <div className="id-upload-box card border shadow-sm rounded-4 p-3 h-100 bg-white">
+                                <p className="small text-muted mb-3 fw-medium">CNIC Back Image</p>
+                                {idBack ? (
+                                  <div className="position-relative mb-3">
+                                    <Image src={idBack} alt="ID Back" className="img-fluid rounded-3 border" style={{ maxHeight: '150px', width: '100%', objectFit: 'cover' }} width={300} height={150} unoptimized />
+                                    <button type="button" className="btn btn-sm btn-danger position-absolute top-0 end-0 m-2 rounded-circle shadow-sm" style={{ width: 28, height: 28, padding: 0 }} onClick={() => setIdBack(null)}>
+                                      <i className="fa-solid fa-times small"></i>
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="id-placeholder rounded-3 border border-dashed p-4 text-center bg-light-subtle d-flex flex-column align-items-center justify-content-center mb-0" style={{ minHeight: '120px' }}>
+                                    <i className="fa-solid fa-camera fa-2x text-muted mb-2 opacity-50"></i>
+                                    <label className="btn btn-outline-success btn-sm stretched-link" style={{ cursor: 'pointer' }}>
+                                      Upload Back
+                                      <input type="file" className="d-none" accept="image/*" onChange={async (e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) {
+                                          const urls = await filesToDataUrls([file]);
+                                          setIdBack(urls[0]);
+                                        }
+                                      }} />
+                                    </label>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
                         <div className="col-12">
                           <label className="form-label">Additional Information</label>
                           <textarea
@@ -1865,9 +1980,9 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                             : "Requirements posted by buyers across Pakistan."}
                         </p>
                       </div>
-                      {role === "buyer" && (
+                      {(role === "buyer" || role === "admin") && (
                         <button type="button" className="btn btn-success" onClick={() => {
-                          if (activeSubscription) {
+                          if (activeSubscription || role === "admin") {
                             setShowBroadcastModal(true);
                           } else {
                             setShowUpgradeModal(true);
@@ -3009,14 +3124,45 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
           }
         }
 
+        .sidebar-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0,0,0,0.3);
+          backdrop-filter: blur(2px);
+          z-index: 1040;
+          animation: fadeIn 0.3s ease;
+        }
+
+        .dashboard-frame {
+          min-height: calc(100vh - 100px);
+        }
+
         @media (max-width: 991px) {
           .panel-sidebar {
-            position: static !important;
-            min-height: auto;
+            position: fixed !important;
+            top: 0;
+            left: -280px;
+            width: 280px;
+            height: 100vh;
+            z-index: 1050;
+            border-radius: 0 !important;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow-y: auto;
+          }
+
+          .panel-sidebar.show {
+            transform: translateX(280px);
+            box-shadow: 10px 0 30px rgba(0,0,0,0.15);
           }
 
           .panel-hero h1 {
             font-size: 1.8rem;
+          }
+
+          .dashboard-topbar {
+            position: sticky;
+            top: 10px;
+            z-index: 1000;
           }
         }
 
