@@ -26,9 +26,9 @@ function mapCategory(category: {
   description?: string;
   createdAt: Date;
   subcategories?: {
-    _id: mongoose.Types.ObjectId;
+    _id?: mongoose.Types.ObjectId;
     name: string;
-    children?: { _id: mongoose.Types.ObjectId; name: string }[];
+    children?: { _id?: mongoose.Types.ObjectId; name: string }[];
   }[];
 }): CategoryResponse {
   return {
@@ -150,15 +150,15 @@ export async function POST(request: Request) {
 
     const safeSubcategories = Array.isArray(subcategories)
       ? subcategories
-          .filter((subcategory) => subcategory.name && subcategory.name.trim().length > 0)
-          .map((subcategory) => ({
-            name: subcategory.name.trim(),
-            children: Array.isArray(subcategory.children)
-              ? subcategory.children
-                  .filter((child) => child.name && child.name.trim().length > 0)
-                  .map((child) => ({ name: child.name.trim() }))
-              : [],
-          }))
+        .filter((subcategory) => subcategory.name && subcategory.name.trim().length > 0)
+        .map((subcategory) => ({
+          name: subcategory.name.trim(),
+          children: Array.isArray(subcategory.children)
+            ? subcategory.children
+              .filter((child) => child.name && child.name.trim().length > 0)
+              .map((child) => ({ name: child.name.trim() }))
+            : [],
+        }))
       : [];
 
     const created = await Category.create({

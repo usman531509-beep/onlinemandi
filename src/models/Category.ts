@@ -5,8 +5,10 @@ export type CategoryDocument = {
   description?: string;
   createdBy: mongoose.Types.ObjectId;
   subcategories: {
+    _id?: mongoose.Types.ObjectId;
     name: string;
     children: {
+      _id?: mongoose.Types.ObjectId;
       name: string;
     }[];
   }[];

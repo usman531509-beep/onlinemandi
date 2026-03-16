@@ -92,22 +92,28 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
         .filter((subcategory) => subcategory.name && subcategory.name.trim().length > 0)
         .map((subcategory) => {
           const payload: {
-            _id?: string;
+            _id?: mongoose.Types.ObjectId;
             name: string;
-            children: { _id?: string; name: string }[];
+            children: { _id?: mongoose.Types.ObjectId; name: string }[];
           } = {
             name: subcategory.name.trim(),
             children: Array.isArray(subcategory.children)
               ? subcategory.children
-                  .filter((child) => child.name && child.name.trim().length > 0)
-                  .map((child) => {
-                    const childPayload: { _id?: string; name: string } = { name: child.name.trim() };
-                    if (child.id) childPayload._id = child.id;
-                    return childPayload;
-                  })
+                .filter((child) => child.name && child.name.trim().length > 0)
+                .map((child) => {
+                  const childPayload: { _id?: mongoose.Types.ObjectId; name: string } = {
+                    name: child.name.trim(),
+                  };
+                  if (child.id && mongoose.Types.ObjectId.isValid(child.id)) {
+                    childPayload._id = new mongoose.Types.ObjectId(child.id);
+                  }
+                  return childPayload;
+                })
               : [],
           };
-          if (subcategory.id) payload._id = subcategory.id;
+          if (subcategory.id && mongoose.Types.ObjectId.isValid(subcategory.id)) {
+            payload._id = new mongoose.Types.ObjectId(subcategory.id);
+          }
           return payload;
         });
     }
