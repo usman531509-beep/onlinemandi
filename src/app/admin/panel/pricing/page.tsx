@@ -29,6 +29,18 @@ export default function PricingPlansPage() {
     const [editingPlan, setEditingPlan] = useState<PaymentPlan | null>(null);
     const [statusMsg, setStatusMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+    const [confirmModal, setConfirmModal] = useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+        onConfirm: () => void | Promise<void>;
+    }>({
+        isOpen: false,
+        title: "",
+        message: "",
+        onConfirm: () => { },
+    });
+
     // Form State
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
@@ -146,38 +158,105 @@ export default function PricingPlansPage() {
     };
 
     const handleToggleActive = async (plan: PaymentPlan) => {
-        if (!confirm(`Are you sure you want to ${plan.isActive ? 'archive' : 'activate'} this plan?`)) return;
-
-        try {
-            const url = `/api/admin/plans/${plan._id}?role=admin`;
-            const res = await fetch(url, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ isActive: !plan.isActive }),
-            });
-            if (res.ok) {
-                fetchPlans();
+        setConfirmModal({
+            isOpen: true,
+            title: `${plan.isActive ? 'Archive' : 'Activate'} Plan`,
+            message: `Are you sure you want to ${plan.isActive ? 'archive' : 'activate'} this plan?`,
+            onConfirm: async () => {
+                try {
+                    const url = `/api/admin/plans/${plan._id}?role=admin`;
+                    const res = await fetch(url, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ isActive: !plan.isActive }),
+                    });
+                    if (res.ok) {
+                        fetchPlans();
+                    }
+                } catch (error) {
+                    alert("Error toggling plan status");
+                } finally {
+                    setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+                }
             }
-        } catch (error) {
-            alert("Error toggling plan status");
-        }
+        });
     };
 
     const handleDeletePlan = async (id: string) => {
-        if (!confirm("Are you sure you want to archive this plan? This will stop new subscriptions but won't cancel existing ones.")) return;
-
-        try {
-            const res = await fetch(`/api/admin/plans/${id}?role=admin`, { method: "DELETE" });
-            if (res.ok) fetchPlans();
-        } catch (error) {
-            alert("Error archiving plan");
-        }
+        setConfirmModal({
+            isOpen: true,
+            title: "Archive Plan",
+            message: "Are you sure you want to archive this plan? This will stop new subscriptions but won't cancel existing ones.",
+            onConfirm: async () => {
+                try {
+                    const res = await fetch(`/api/admin/plans/${id}?role=admin`, { method: "DELETE" });
+                    if (res.ok) fetchPlans();
+                } catch (error) {
+                    alert("Error archiving plan");
+                } finally {
+                    setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+                }
+            }
+        });
     };
 
     return (
         <AdminShell>
             {(sessionUser) => (
                 <>
+                    {confirmModal.isOpen && (
+                        <div className="category-modal-backdrop" onClick={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}>
+                            <div className="category-modal card border shadow-sm rounded-4 bg-white" style={{ maxWidth: "450px" }} onClick={(event) => event.stopPropagation()}>
+                                <div className="card-body p-4 text-center">
+                                    <div className="mb-3 text-warning">
+                                        <i className="fa-solid fa-circle-exclamation fa-3x"></i>
+                                    </div>
+                                    <h3 className="h5 fw-bold mb-2">{confirmModal.title}</h3>
+                                    <p className="text-muted mb-4">{confirmModal.message}</p>
+                                    <div className="d-flex gap-2 justify-content-center">
+                                        <button
+                                            type="button"
+                                            className="btn btn-outline-secondary px-4"
+                                            onClick={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="btn btn-warning px-4 fw-bold"
+                                            onClick={() => void confirmModal.onConfirm()}
+                                        >
+                                            Confirm
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    <style jsx>{`
+                        .category-modal-backdrop {
+                            position: fixed;
+                            top: 0;
+                            left: 0;
+                            width: 100%;
+                            height: 100%;
+                            background: rgba(0, 0, 0, 0.4);
+                            backdrop-filter: blur(4px);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            z-index: 1050;
+                            padding: 20px;
+                        }
+                        .category-modal {
+                            animation: modalEntry 0.3s ease-out;
+                            width: 100%;
+                        }
+                        @keyframes modalEntry {
+                            from { transform: translateY(20px); opacity: 0; }
+                            to { transform: translateY(0); opacity: 1; }
+                        }
+                    `}</style>
                     <div className="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom">
                         <div>
                             <h2 className="fw-bold mb-1" style={{ color: "#1b4332" }}>Pricing Plans</h2>

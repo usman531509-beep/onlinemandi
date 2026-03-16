@@ -21,6 +21,7 @@ type PopulatedListing = {
   pricePerMaund: number;
   description?: string;
   images?: string[];
+  extraInfo?: { label: string; value: string }[];
   createdAt: Date;
   createdBy?:
   | {
@@ -46,6 +47,7 @@ function mapListing(listing: PopulatedListing) {
     pricePerMaund: listing.pricePerMaund,
     description: listing.description || "",
     images: listing.images || [],
+    extraInfo: listing.extraInfo || [],
     createdAt: listing.createdAt,
     createdBy: listing.createdBy
       ? {
@@ -122,6 +124,7 @@ export async function POST(request: Request) {
       pricePerMaund?: number;
       description?: string;
       images?: string[];
+      extraInfo?: { label: string; value: string }[];
     };
 
     const userId = body.userId;
@@ -149,6 +152,12 @@ export async function POST(request: Request) {
     const description = body.description?.trim();
     const images = Array.isArray(body.images)
       ? body.images.filter((item) => typeof item === "string").slice(0, 8)
+      : [];
+    const extraInfo = Array.isArray(body.extraInfo)
+      ? body.extraInfo.filter((item) => item.label && item.value).map(item => ({
+        label: String(item.label).trim(),
+        value: String(item.value).trim()
+      }))
       : [];
     const pricePerMaund = Number(body.pricePerMaund);
 
@@ -216,6 +225,7 @@ export async function POST(request: Request) {
       pricePerMaund,
       description,
       images,
+      extraInfo,
       createdBy: user._id,
     });
 

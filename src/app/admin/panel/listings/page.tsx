@@ -25,6 +25,7 @@ type Listing = {
   pricePerMaund: number;
   description: string;
   images: string[];
+  extraInfo?: { label: string; value: string }[];
   createdAt: string;
   createdBy: {
     id: string;
@@ -37,11 +38,21 @@ type Listing = {
 type Category = {
   id: string;
   name: string;
+  subcategories?: {
+    id: string;
+    name: string;
+    children?: {
+      id: string;
+      name: string;
+    }[];
+  }[];
 };
 
 const initialListingForm = {
   title: "",
   category: "",
+  subcategory: "",
+  childCategory: "",
   grade: "",
   moisture: "",
   delivery: "",
@@ -50,6 +61,7 @@ const initialListingForm = {
   quantityUnit: "ton",
   pricePerMaund: "",
   description: "",
+  extraInfo: [] as { label: string; value: string }[],
 };
 
 type QuantityUnit = "ton" | "maund" | "kg";
@@ -102,10 +114,45 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
   const [editingListingId, setEditingListingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState(initialListingForm);
   const [editImages, setEditImages] = useState<string[]>([]);
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void | Promise<void>;
+  }>({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => { },
+  });
 
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
 
   const categoryOptions = useMemo(() => categories.map((category) => category.name), [categories]);
+
+  const findHierarchy = useCallback((categoryName: string) => {
+    for (const cat of categories) {
+      if (cat.name === categoryName) return { category: cat.name, sub: "", child: "" };
+      for (const sub of cat.subcategories || []) {
+        if (sub.name === categoryName) return { category: cat.name, sub: sub.name, child: "" };
+        for (const child of sub.children || []) {
+          if (child.name === categoryName) return { category: cat.name, sub: sub.name, child: child.name };
+        }
+      }
+    }
+    return { category: categoryName, sub: "", child: "" };
+  }, [categories]);
+
+  const getSubcategoryOptions = (catName: string) => {
+    const cat = categories.find(c => c.name === catName);
+    return cat?.subcategories?.map(s => s.name) || [];
+  };
+
+  const getChildCategoryOptions = (catName: string, subName: string) => {
+    const cat = categories.find(c => c.name === catName);
+    const sub = cat?.subcategories?.find(s => s.name === subName);
+    return sub?.children?.map(c => c.name) || [];
+  };
 
   useEffect(() => {
     if (!categoryOptions.length) return;
@@ -177,12 +224,46 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
   const removeCreateImage = (index: number) => setListingImages((prev) => prev.filter((_, idx) => idx !== index));
   const removeEditImage = (index: number) => setEditImages((prev) => prev.filter((_, idx) => idx !== index));
 
+  const addExtraInfo = (isEdit: boolean) => {
+    const newItem = { label: "", value: "" };
+    if (isEdit) {
+      setEditForm(prev => ({ ...prev, extraInfo: [...(prev.extraInfo || []), newItem] }));
+    } else {
+      setListingForm(prev => ({ ...prev, extraInfo: [...(prev.extraInfo || []), newItem] }));
+    }
+  };
+
+  const removeExtraInfo = (index: number, isEdit: boolean) => {
+    if (isEdit) {
+      setEditForm(prev => ({ ...prev, extraInfo: (prev.extraInfo || []).filter((_, i) => i !== index) }));
+    } else {
+      setListingForm(prev => ({ ...prev, extraInfo: (prev.extraInfo || []).filter((_, i) => i !== index) }));
+    }
+  };
+
+  const updateExtraInfo = (index: number, key: "label" | "value", value: string, isEdit: boolean) => {
+    const update = (prev: typeof initialListingForm) => {
+      const newList = [...(prev.extraInfo || [])];
+      newList[index] = { ...newList[index], [key]: value };
+      return { ...prev, extraInfo: newList };
+    };
+    if (isEdit) {
+      setEditForm(prev => update(prev));
+    } else {
+      setListingForm(prev => update(prev));
+    }
+  };
+
   const startEditListing = (listing: Listing) => {
     const parsedQuantity = parseQuantity(listing.quantity);
+    const hierarchy = findHierarchy(listing.category);
+
     setEditingListingId(listing.id);
     setEditForm({
       title: listing.title,
-      category: listing.category,
+      category: hierarchy.category,
+      subcategory: hierarchy.sub,
+      childCategory: hierarchy.child,
       grade: listing.grade || "Unspecified",
       moisture: listing.moisture || "Not specified",
       delivery: listing.delivery || "Negotiable",
@@ -191,6 +272,7 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
       quantityUnit: parsedQuantity.quantityUnit,
       pricePerMaund: String(listing.pricePerMaund),
       description: listing.description,
+      extraInfo: listing.extraInfo || [],
     });
     setEditImages(listing.images || []);
   };
@@ -213,7 +295,7 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
           userId: sessionUser.id,
           role: sessionUser.role,
           title: listingForm.title,
-          category: listingForm.category,
+          category: listingForm.childCategory || listingForm.subcategory || listingForm.category,
           grade: listingForm.grade,
           moisture: listingForm.moisture,
           delivery: listingForm.delivery,
@@ -222,6 +304,7 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
           pricePerMaund: Number(listingForm.pricePerMaund),
           description: listingForm.description,
           images: listingImages,
+          extraInfo: listingForm.extraInfo,
         }),
       });
       const data = (await response.json()) as { ok: boolean; message?: string };
@@ -229,7 +312,7 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
         setMessage(data.message || "Failed to create listing.");
         return;
       }
-      setListingForm((prev) => ({ ...initialListingForm, category: prev.category }));
+      setListingForm((prev) => ({ ...initialListingForm, category: prev.category, subcategory: prev.subcategory, childCategory: prev.childCategory, extraInfo: [] }));
       setListingImages([]);
       setMessage("Listing created successfully.");
       await loadListings();
@@ -253,7 +336,7 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
           userId: sessionUser.id,
           role: sessionUser.role,
           title: editForm.title,
-          category: editForm.category,
+          category: editForm.childCategory || editForm.subcategory || editForm.category,
           grade: editForm.grade,
           moisture: editForm.moisture,
           delivery: editForm.delivery,
@@ -262,6 +345,7 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
           pricePerMaund: Number(editForm.pricePerMaund),
           description: editForm.description,
           images: editImages,
+          extraInfo: editForm.extraInfo,
         }),
       });
       const data = (await response.json()) as { ok: boolean; message?: string };
@@ -280,29 +364,65 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
   };
 
   const onDeleteListing = async (listingId: string) => {
-    const confirmed = window.confirm("Delete this listing?");
-    if (!confirmed) return;
-    setMessage("");
-    try {
-      const response = await fetch(`/api/listings/${listingId}`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: sessionUser.id, role: sessionUser.role }),
-      });
-      const data = (await response.json()) as { ok: boolean; message?: string };
-      if (!response.ok || !data.ok) {
-        setMessage(data.message || "Failed to delete listing.");
-        return;
-      }
-      setMessage("Listing deleted successfully.");
-      await loadListings();
-    } catch {
-      setMessage("Network error while deleting listing.");
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: "Delete Listing",
+      message: "Are you sure you want to delete this listing? This action cannot be undone.",
+      onConfirm: async () => {
+        setMessage("");
+        try {
+          const response = await fetch(`/api/listings/${listingId}`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId: sessionUser.id, role: sessionUser.role }),
+          });
+          const data = (await response.json()) as { ok: boolean; message?: string };
+          if (!response.ok || !data.ok) {
+            setMessage(data.message || "Failed to delete listing.");
+            return;
+          }
+          setMessage("Listing deleted successfully.");
+          await loadListings();
+        } catch {
+          setMessage("Network error while deleting listing.");
+        } finally {
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
   };
 
   return (
     <>
+      {confirmModal.isOpen && (
+        <div className="category-modal-backdrop" onClick={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}>
+          <div className="category-modal card border shadow-sm rounded-4 bg-white" style={{ maxWidth: "450px" }} onClick={(event) => event.stopPropagation()}>
+            <div className="card-body p-4 text-center">
+              <div className="mb-3 text-danger">
+                <i className="fa-solid fa-circle-exclamation fa-3x"></i>
+              </div>
+              <h3 className="h5 fw-bold mb-2">{confirmModal.title}</h3>
+              <p className="text-muted mb-4">{confirmModal.message}</p>
+              <div className="d-flex gap-2 justify-content-center">
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary px-4"
+                  onClick={() => setConfirmModal((prev) => ({ ...prev, isOpen: false }))}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger px-4"
+                  onClick={() => void confirmModal.onConfirm()}
+                >
+                  Confirm Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <section className="card border shadow-sm rounded-4 p-4 mb-4 bg-white">
         <div className="d-flex justify-content-between align-items-start flex-wrap gap-3">
           <div className="d-flex align-items-center gap-3">
@@ -340,8 +460,41 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
               </div>
               <form onSubmit={onCreateListing}>
                 <div className="row g-3">
-                  <div className="col-md-6"><label className="form-label">Title</label><input className="form-control" required value={listingForm.title} onChange={(e) => setListingForm((p) => ({ ...p, title: e.target.value }))} /></div>
-                  <div className="col-md-6"><label className="form-label">Category</label><select className="form-select" value={listingForm.category} onChange={(e) => setListingForm((p) => ({ ...p, category: e.target.value }))}>{categoryOptions.map((option) => <option key={option}>{option}</option>)}</select></div>
+                  <div className="col-12"><label className="form-label">Title</label><input className="form-control" required value={listingForm.title} onChange={(e) => setListingForm((p) => ({ ...p, title: e.target.value }))} /></div>
+
+                  <div className="col-md-4">
+                    <label className="form-label">Category</label>
+                    <select className="form-select" required value={listingForm.category} onChange={(e) => setListingForm((p) => ({ ...p, category: e.target.value, subcategory: "", childCategory: "" }))}>
+                      <option value="">Select Category</option>
+                      {categoryOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="col-md-4">
+                    <label className="form-label">Subcategory</label>
+                    <select
+                      className="form-select"
+                      value={listingForm.subcategory}
+                      disabled={!listingForm.category || getSubcategoryOptions(listingForm.category).length === 0}
+                      onChange={(e) => setListingForm((p) => ({ ...p, subcategory: e.target.value, childCategory: "" }))}
+                    >
+                      <option value="">Select Subcategory</option>
+                      {getSubcategoryOptions(listingForm.category).map((option) => <option key={option} value={option}>{option}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="col-md-4">
+                    <label className="form-label">Child Category</label>
+                    <select
+                      className="form-select"
+                      value={listingForm.childCategory}
+                      disabled={!listingForm.subcategory || getChildCategoryOptions(listingForm.category, listingForm.subcategory).length === 0}
+                      onChange={(e) => setListingForm((p) => ({ ...p, childCategory: e.target.value }))}
+                    >
+                      <option value="">Select Child Category</option>
+                      {getChildCategoryOptions(listingForm.category, listingForm.subcategory).map((option) => <option key={option} value={option}>{option}</option>)}
+                    </select>
+                  </div>
                   <div className="col-md-4"><label className="form-label">Grade</label><input className="form-control" value={listingForm.grade} onChange={(e) => setListingForm((p) => ({ ...p, grade: e.target.value }))} placeholder="" /></div>
                   <div className="col-md-4"><label className="form-label">Moisture</label><input className="form-control" value={listingForm.moisture} onChange={(e) => setListingForm((p) => ({ ...p, moisture: e.target.value }))} placeholder="" /></div>
                   <div className="col-md-4"><label className="form-label">Delivery</label><input className="form-control" value={listingForm.delivery} onChange={(e) => setListingForm((p) => ({ ...p, delivery: e.target.value }))} placeholder="" /></div>
@@ -372,6 +525,23 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
                   </div>
                   <div className="col-md-4"><label className="form-label">Price / Maund</label><input className="form-control" type="number" required value={listingForm.pricePerMaund} onChange={(e) => setListingForm((p) => ({ ...p, pricePerMaund: e.target.value }))} /></div>
                   <div className="col-12"><label className="form-label">Description</label><textarea className="form-control" rows={3} value={listingForm.description} onChange={(e) => setListingForm((p) => ({ ...p, description: e.target.value }))}></textarea></div>
+
+                  {listingForm.extraInfo?.map((info, idx) => (
+                    <div key={idx} className="col-12">
+                      <div className="d-flex gap-2">
+                        <input className="form-control" placeholder="Title (e.g. Color)" value={info.label} onChange={(e) => updateExtraInfo(idx, "label", e.target.value, false)} />
+                        <input className="form-control" placeholder="Information" value={info.value} onChange={(e) => updateExtraInfo(idx, "value", e.target.value, false)} />
+                        <button type="button" className="btn btn-outline-danger" onClick={() => removeExtraInfo(idx, false)}>×</button>
+                      </div>
+                    </div>
+                  ))}
+
+                  <div className="col-12">
+                    <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => addExtraInfo(false)}>
+                      <i className="fa-solid fa-plus me-1"></i>Add Extra Info
+                    </button>
+                  </div>
+
                   <div className="col-12">
                     <label className="form-label">Upload Images (multiple)</label>
                     <input type="file" className="form-control" multiple accept="image/*" onChange={onCreateListingImagesChange} />
@@ -402,8 +572,41 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
           </div>
           <form onSubmit={onUpdateListing}>
             <div className="row g-3">
-              <div className="col-md-6"><label className="form-label">Title</label><input className="form-control" required value={editForm.title} onChange={(e) => setEditForm((p) => ({ ...p, title: e.target.value }))} /></div>
-              <div className="col-md-6"><label className="form-label">Category</label><select className="form-select" value={editForm.category} onChange={(e) => setEditForm((p) => ({ ...p, category: e.target.value }))}>{categoryOptions.map((option) => <option key={option}>{option}</option>)}</select></div>
+              <div className="col-12"><label className="form-label">Title</label><input className="form-control" required value={editForm.title} onChange={(e) => setEditForm((p) => ({ ...p, title: e.target.value }))} /></div>
+
+              <div className="col-md-4">
+                <label className="form-label">Category</label>
+                <select className="form-select" required value={editForm.category} onChange={(e) => setEditForm((p) => ({ ...p, category: e.target.value, subcategory: "", childCategory: "" }))}>
+                  <option value="">Select Category</option>
+                  {categoryOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                </select>
+              </div>
+
+              <div className="col-md-4">
+                <label className="form-label">Subcategory</label>
+                <select
+                  className="form-select"
+                  value={editForm.subcategory}
+                  disabled={!editForm.category || getSubcategoryOptions(editForm.category).length === 0}
+                  onChange={(e) => setEditForm((p) => ({ ...p, subcategory: e.target.value, childCategory: "" }))}
+                >
+                  <option value="">Select Subcategory</option>
+                  {getSubcategoryOptions(editForm.category).map((option) => <option key={option} value={option}>{option}</option>)}
+                </select>
+              </div>
+
+              <div className="col-md-4">
+                <label className="form-label">Child Category</label>
+                <select
+                  className="form-select"
+                  value={editForm.childCategory}
+                  disabled={!editForm.subcategory || getChildCategoryOptions(editForm.category, editForm.subcategory).length === 0}
+                  onChange={(e) => setEditForm((p) => ({ ...p, childCategory: e.target.value }))}
+                >
+                  <option value="">Select Child Category</option>
+                  {getChildCategoryOptions(editForm.category, editForm.subcategory).map((option) => <option key={option} value={option}>{option}</option>)}
+                </select>
+              </div>
               <div className="col-md-4"><label className="form-label">Grade</label><input className="form-control" value={editForm.grade} onChange={(e) => setEditForm((p) => ({ ...p, grade: e.target.value }))} /></div>
               <div className="col-md-4"><label className="form-label">Moisture</label><input className="form-control" value={editForm.moisture} onChange={(e) => setEditForm((p) => ({ ...p, moisture: e.target.value }))} /></div>
               <div className="col-md-4"><label className="form-label">Delivery</label><input className="form-control" value={editForm.delivery} onChange={(e) => setEditForm((p) => ({ ...p, delivery: e.target.value }))} /></div>
@@ -434,6 +637,23 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
               </div>
               <div className="col-md-4"><label className="form-label">Price / Maund</label><input className="form-control" type="number" required value={editForm.pricePerMaund} onChange={(e) => setEditForm((p) => ({ ...p, pricePerMaund: e.target.value }))} /></div>
               <div className="col-12"><label className="form-label">Description</label><textarea className="form-control" rows={3} value={editForm.description} onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))}></textarea></div>
+
+              {editForm.extraInfo?.map((info, idx) => (
+                <div key={idx} className="col-12">
+                  <div className="d-flex gap-2">
+                    <input className="form-control" placeholder="Title (e.g. Color)" value={info.label} onChange={(e) => updateExtraInfo(idx, "label", e.target.value, true)} />
+                    <input className="form-control" placeholder="Information" value={info.value} onChange={(e) => updateExtraInfo(idx, "value", e.target.value, true)} />
+                    <button type="button" className="btn btn-outline-danger" onClick={() => removeExtraInfo(idx, true)}>×</button>
+                  </div>
+                </div>
+              ))}
+
+              <div className="col-12">
+                <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => addExtraInfo(true)}>
+                  <i className="fa-solid fa-plus me-1"></i>Add Extra Info
+                </button>
+              </div>
+
               <div className="col-12">
                 <label className="form-label">Update Images</label>
                 <input type="file" className="form-control" multiple accept="image/*" onChange={onEditListingImagesChange} />
@@ -526,6 +746,20 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
                 <div className="col-md-4"><div className="detail-item"><small>Delivery</small><p className="mb-0 fw-semibold">{selectedListing.delivery || "Negotiable"}</p></div></div>
               </div>
               <div className="detail-item mb-3"><small>Description</small><p className="mb-0">{selectedListing.description || "No description provided."}</p></div>
+
+              {selectedListing.extraInfo && selectedListing.extraInfo.length > 0 && (
+                <div className="row g-3 mb-3">
+                  {selectedListing.extraInfo.map((info, idx) => (
+                    <div key={idx} className="col-md-6">
+                      <div className="detail-item">
+                        <small>{info.label}</small>
+                        <p className="mb-0 fw-semibold">{info.value}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div className="d-flex justify-content-between align-items-center border-top pt-3">
                 <div><small className="text-muted d-block">Price / Maund</small><strong className="text-success">PKR {selectedListing.pricePerMaund.toLocaleString()}</strong></div>
                 <div className="text-end">

@@ -27,6 +27,7 @@ type Listing = {
   pricePerMaund: number;
   description: string;
   images: string[];
+  extraInfo?: { label: string; value: string }[];
   createdAt: string;
   createdBy: {
     id: string;
@@ -39,7 +40,15 @@ type Listing = {
 type Category = {
   id: string;
   name: string;
-  description: string;
+  description?: string;
+  subcategories?: {
+    id: string;
+    name: string;
+    children?: {
+      id: string;
+      name: string;
+    }[];
+  }[];
   createdAt: string;
 };
 
@@ -107,6 +116,8 @@ type PanelTab = "overview" | "listings" | "profile" | "categories" | "broadcasti
 const initialListingForm = {
   title: "",
   category: "",
+  subcategory: "",
+  childCategory: "",
   grade: "",
   moisture: "",
   delivery: "",
@@ -115,6 +126,7 @@ const initialListingForm = {
   quantityUnit: "ton",
   pricePerMaund: "",
   description: "",
+  extraInfo: [] as { label: string; value: string }[],
 };
 
 const initialProfileForm = {
@@ -237,6 +249,16 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [listingCount, setListingCount] = useState(0);
   const [broadcastCount, setBroadcastCount] = useState(0);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmModalConfig, setConfirmModalConfig] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    title: "",
+    message: "",
+    onConfirm: () => { },
+  });
 
   const hasAccess = sessionUser?.role === role;
   const canCreateListing = role === "admin" || role === "seller";
@@ -287,26 +309,71 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
     return categories.map((category) => category.name);
   }, [categories]);
 
-  const resolveListingCategory = useCallback(
-    (value: string) => {
-      if (categoryOptions.includes(value)) return value;
-      if (categoryOptions.length) return categoryOptions[0];
-      return value;
-    },
-    [categoryOptions]
-  );
+  const findHierarchy = useCallback((categoryName: string) => {
+    for (const cat of categories) {
+      if (cat.name === categoryName) return { category: cat.name, sub: "", child: "" };
+      for (const sub of cat.subcategories || []) {
+        if (sub.name === categoryName) return { category: cat.name, sub: sub.name, child: "" };
+        for (const child of sub.children || []) {
+          if (child.name === categoryName) return { category: cat.name, sub: sub.name, child: child.name };
+        }
+      }
+    }
+    return { category: categoryName, sub: "", child: "" };
+  }, [categories]);
+
+  const getSubcategoryOptions = (catName: string) => {
+    const cat = categories.find(c => c.name === catName);
+    return cat?.subcategories?.map(s => s.name) || [];
+  };
+
+  const getChildCategoryOptions = (catName: string, subName: string) => {
+    const cat = categories.find(c => c.name === catName);
+    const sub = cat?.subcategories?.find(s => s.name === subName);
+    return sub?.children?.map(c => c.name) || [];
+  };
+
+  const addExtraInfo = (isEdit: boolean) => {
+    const newItem = { label: "", value: "" };
+    if (isEdit) {
+      setEditForm(prev => ({ ...prev, extraInfo: [...(prev.extraInfo || []), newItem] }));
+    } else {
+      setListingForm(prev => ({ ...prev, extraInfo: [...(prev.extraInfo || []), newItem] }));
+    }
+  };
+
+  const removeExtraInfo = (index: number, isEdit: boolean) => {
+    if (isEdit) {
+      setEditForm(prev => ({ ...prev, extraInfo: (prev.extraInfo || []).filter((_, i) => i !== index) }));
+    } else {
+      setListingForm(prev => ({ ...prev, extraInfo: (prev.extraInfo || []).filter((_, i) => i !== index) }));
+    }
+  };
+
+  const updateExtraInfo = (index: number, key: "label" | "value", value: string, isEdit: boolean) => {
+    const update = (prev: typeof initialListingForm) => {
+      const newList = [...(prev.extraInfo || [])];
+      newList[index] = { ...newList[index], [key]: value };
+      return { ...prev, extraInfo: newList };
+    };
+    if (isEdit) {
+      setEditForm(prev => update(prev));
+    } else {
+      setListingForm(prev => update(prev));
+    }
+  };
 
   useEffect(() => {
     if (!categoryOptions.length) return;
 
     setListingForm((prev) => {
       if (categoryOptions.includes(prev.category)) return prev;
-      return { ...prev, category: categoryOptions[0] };
+      return { ...prev, category: categoryOptions[0], subcategory: "", childCategory: "" };
     });
 
     setEditForm((prev) => {
       if (categoryOptions.includes(prev.category)) return prev;
-      return { ...prev, category: categoryOptions[0] };
+      return { ...prev, category: categoryOptions[0], subcategory: "", childCategory: "" };
     });
   }, [categoryOptions]);
 
@@ -674,7 +741,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
           userId: sessionUser.id,
           role: sessionUser.role,
           title: listingForm.title,
-          category: listingForm.category,
+          category: listingForm.childCategory || listingForm.subcategory || listingForm.category,
           grade: listingForm.grade,
           moisture: listingForm.moisture,
           delivery: listingForm.delivery,
@@ -683,6 +750,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
           pricePerMaund: Number(listingForm.pricePerMaund),
           description: listingForm.description,
           images: listingImages,
+          extraInfo: listingForm.extraInfo,
         }),
       });
 
@@ -696,7 +764,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
         return;
       }
 
-      setListingForm((prev) => ({ ...initialListingForm, category: prev.category }));
+      setListingForm((prev) => ({ ...initialListingForm, category: prev.category, subcategory: prev.subcategory, childCategory: prev.childCategory }));
       setListingImages([]);
       setListingsMessage("Listing created successfully.");
       await loadListings();
@@ -795,38 +863,40 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
     }
   };
 
-  const onDeleteCategory = async (categoryId: string) => {
+  const onDeleteCategory = (categoryId: string) => {
     if (!sessionUser) return;
-    const confirmed = window.confirm("Delete this category?");
-    if (!confirmed) return;
-
-    setIsDeletingCategoryId(categoryId);
-    setCategoriesMessage("");
-
-    try {
-      const response = await fetch(`/api/categories/${categoryId}`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: sessionUser.id,
-          role: sessionUser.role,
-        }),
-      });
-
-      const data = (await response.json()) as { ok: boolean; message?: string };
-      if (!response.ok || !data.ok) {
-        setCategoriesMessage(data.message || "Failed to delete category.");
-        return;
-      }
-
-      setCategoriesMessage("Category deleted successfully.");
-      if (editingCategoryId === categoryId) cancelEditCategory();
-      await loadCategories();
-    } catch {
-      setCategoriesMessage("Network error while deleting category.");
-    } finally {
-      setIsDeletingCategoryId(null);
-    }
+    setConfirmModalConfig({
+      title: "Delete Category",
+      message: "Are you sure you want to delete this category? This will not delete listings in this category but will remove the category association.",
+      onConfirm: async () => {
+        setShowConfirmModal(false);
+        setIsDeletingCategoryId(categoryId);
+        setCategoriesMessage("");
+        try {
+          const response = await fetch(`/api/categories/${categoryId}`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: sessionUser.id,
+              role: sessionUser.role,
+            }),
+          });
+          const data = (await response.json()) as { ok: boolean; message?: string };
+          if (!response.ok || !data.ok) {
+            setCategoriesMessage(data.message || "Failed to delete category.");
+            return;
+          }
+          setCategoriesMessage("Category deleted successfully.");
+          if (editingCategoryId === categoryId) cancelEditCategory();
+          await loadCategories();
+        } catch {
+          setCategoriesMessage("Network error while deleting category.");
+        } finally {
+          setIsDeletingCategoryId(null);
+        }
+      },
+    });
+    setShowConfirmModal(true);
   };
 
   const canMutateListing = (listing: Listing) => {
@@ -837,10 +907,13 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
 
   const startEditListing = (listing: Listing) => {
     const parsedQuantity = parseQuantity(listing.quantity);
+    const hierarchy = findHierarchy(listing.category);
     setEditingListingId(listing.id);
     setEditForm({
       title: listing.title,
-      category: resolveListingCategory(listing.category),
+      category: hierarchy.category,
+      subcategory: hierarchy.sub,
+      childCategory: hierarchy.child,
       grade: listing.grade || "Unspecified",
       moisture: listing.moisture || "Not specified",
       delivery: listing.delivery || "Negotiable",
@@ -849,6 +922,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
       quantityUnit: parsedQuantity.quantityUnit,
       pricePerMaund: String(listing.pricePerMaund),
       description: listing.description,
+      extraInfo: listing.extraInfo || [],
     });
     setEditImages(listing.images || []);
     setListingsMessage("");
@@ -856,7 +930,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
 
   const cancelEditListing = () => {
     setEditingListingId(null);
-    setEditForm(initialListingForm);
+    setEditForm({ ...initialListingForm });
     setEditImages([]);
   };
 
@@ -875,7 +949,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
           userId: sessionUser.id,
           role: sessionUser.role,
           title: editForm.title,
-          category: editForm.category,
+          category: editForm.childCategory || editForm.subcategory || editForm.category,
           grade: editForm.grade,
           moisture: editForm.moisture,
           delivery: editForm.delivery,
@@ -884,6 +958,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
           pricePerMaund: Number(editForm.pricePerMaund),
           description: editForm.description,
           images: editImages,
+          extraInfo: editForm.extraInfo,
         }),
       });
 
@@ -903,41 +978,40 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
     }
   };
 
-  const onDeleteListing = async (listingId: string) => {
+  const onDeleteListing = (listingId: string) => {
     if (!sessionUser) return;
-    const confirmed = window.confirm("Delete this listing? This action cannot be undone.");
-    if (!confirmed) return;
-
-    setListingsMessage("");
-
-    try {
-      const response = await fetch(`/api/listings/${listingId}`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: sessionUser.id,
-          role: sessionUser.role,
-        }),
-      });
-
-      const data = (await response.json()) as { ok: boolean; message?: string };
-      if (!response.ok || !data.ok) {
-        setListingsMessage(data.message || "Failed to delete listing.");
-        return;
-      }
-
-      setListingsMessage("Listing deleted successfully.");
-      await loadListings();
-    } catch {
-      setListingsMessage("Network error while deleting listing.");
-    }
+    setConfirmModalConfig({
+      title: "Delete Listing",
+      message: "Are you sure you want to delete this listing? This action cannot be undone.",
+      onConfirm: async () => {
+        setShowConfirmModal(false);
+        setListingsMessage("");
+        try {
+          const response = await fetch(`/api/listings/${listingId}`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              userId: sessionUser.id,
+              role: sessionUser.role,
+            }),
+          });
+          const data = (await response.json()) as { ok: boolean; message?: string };
+          if (!response.ok || !data.ok) {
+            setListingsMessage(data.message || "Failed to delete listing.");
+            return;
+          }
+          setListingsMessage("Listing deleted successfully.");
+          await loadListings();
+        } catch {
+          setListingsMessage("Network error while deleting listing.");
+        }
+      },
+    });
+    setShowConfirmModal(true);
   };
 
   const openListingDetails = (listing: Listing) => {
-    setSelectedListing({
-      ...listing,
-      category: resolveListingCategory(listing.category),
-    });
+    setSelectedListing(listing);
   };
 
   const closeListingDetails = () => {
@@ -997,8 +1071,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
           <div className="row g-4 align-items-start panel-grid pt-lg-4">
             {/* Sidebar Overlay for Mobile */}
             {isSidebarOpen && (
-              <div
-                className="sidebar-overlay d-lg-none"
+              <div className="sidebar-overlay d-lg-none"
                 onClick={() => setIsSidebarOpen(false)}
               ></div>
             )}
@@ -1277,19 +1350,40 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                                   onChange={(event) => setListingForm((prev) => ({ ...prev, title: event.target.value }))}
                                 />
                               </div>
-                              <div className="col-md-6">
+                              <div className="col-md-4">
                                 <label className="form-label">Category</label>
                                 <select
                                   className="form-select"
                                   value={listingForm.category}
-                                  onChange={(event) => setListingForm((prev) => ({ ...prev, category: event.target.value }))}
+                                  onChange={(event) => setListingForm((prev) => ({ ...prev, category: event.target.value, subcategory: "", childCategory: "" }))}
                                   disabled={!categoryOptions.length}
                                 >
-                                  {categoryOptions.length ? (
-                                    categoryOptions.map((option) => <option key={option}>{option}</option>)
-                                  ) : (
-                                    <option value="">No categories available</option>
-                                  )}
+                                  <option value="">Select Category</option>
+                                  {categoryOptions.map((option) => <option key={option}>{option}</option>)}
+                                </select>
+                              </div>
+                              <div className="col-md-4">
+                                <label className="form-label">Subcategory</label>
+                                <select
+                                  className="form-select"
+                                  value={listingForm.subcategory}
+                                  disabled={!listingForm.category || getSubcategoryOptions(listingForm.category).length === 0}
+                                  onChange={(event) => setListingForm((prev) => ({ ...prev, subcategory: event.target.value, childCategory: "" }))}
+                                >
+                                  <option value="">Select Subcategory</option>
+                                  {getSubcategoryOptions(listingForm.category).map((option) => <option key={option}>{option}</option>)}
+                                </select>
+                              </div>
+                              <div className="col-md-4">
+                                <label className="form-label">Child Category</label>
+                                <select
+                                  className="form-select"
+                                  value={listingForm.childCategory}
+                                  disabled={!listingForm.subcategory || getChildCategoryOptions(listingForm.category, listingForm.subcategory).length === 0}
+                                  onChange={(event) => setListingForm((prev) => ({ ...prev, childCategory: event.target.value }))}
+                                >
+                                  <option value="">Select Child Category</option>
+                                  {getChildCategoryOptions(listingForm.category, listingForm.subcategory).map((option) => <option key={option}>{option}</option>)}
                                 </select>
                               </div>
                               <div className="col-md-4">
@@ -1383,6 +1477,21 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                                   }
                                 ></textarea>
                               </div>
+
+                              {listingForm.extraInfo?.map((info, idx) => (
+                                <div key={idx} className="col-12">
+                                  <div className="input-group">
+                                    <input className="form-control" placeholder="Label (e.g. Color)" value={info.label} onChange={(e) => updateExtraInfo(idx, "label", e.target.value, false)} />
+                                    <input className="form-control" placeholder="Information" value={info.value} onChange={(e) => updateExtraInfo(idx, "value", e.target.value, false)} />
+                                    <button type="button" className="btn btn-outline-danger" onClick={() => removeExtraInfo(idx, false)}><i className="fa-solid fa-times"></i></button>
+                                  </div>
+                                </div>
+                              ))}
+                              <div className="col-12 mt-2">
+                                <button type="button" className="btn btn-sm btn-outline-success" onClick={() => addExtraInfo(false)}>
+                                  <i className="fa-solid fa-plus me-1"></i>Add Extra Info
+                                </button>
+                              </div>
                               <div className="col-12">
                                 <label className="form-label">Upload Images (multiple)</label>
                                 <input
@@ -1448,19 +1557,40 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                               onChange={(event) => setEditForm((prev) => ({ ...prev, title: event.target.value }))}
                             />
                           </div>
-                          <div className="col-md-6">
+                          <div className="col-md-4">
                             <label className="form-label">Category</label>
                             <select
                               className="form-select"
                               value={editForm.category}
-                              onChange={(event) => setEditForm((prev) => ({ ...prev, category: event.target.value }))}
+                              onChange={(event) => setEditForm((prev) => ({ ...prev, category: event.target.value, subcategory: "", childCategory: "" }))}
                               disabled={!categoryOptions.length}
                             >
-                              {categoryOptions.length ? (
-                                categoryOptions.map((option) => <option key={option}>{option}</option>)
-                              ) : (
-                                <option value="">No categories available</option>
-                              )}
+                              <option value="">Select Category</option>
+                              {categoryOptions.map((option) => <option key={option}>{option}</option>)}
+                            </select>
+                          </div>
+                          <div className="col-md-4">
+                            <label className="form-label">Subcategory</label>
+                            <select
+                              className="form-select"
+                              value={editForm.subcategory}
+                              disabled={!editForm.category || getSubcategoryOptions(editForm.category).length === 0}
+                              onChange={(event) => setEditForm((prev) => ({ ...prev, subcategory: event.target.value, childCategory: "" }))}
+                            >
+                              <option value="">Select Subcategory</option>
+                              {getSubcategoryOptions(editForm.category).map((option) => <option key={option}>{option}</option>)}
+                            </select>
+                          </div>
+                          <div className="col-md-4">
+                            <label className="form-label">Child Category</label>
+                            <select
+                              className="form-select"
+                              value={editForm.childCategory}
+                              disabled={!editForm.subcategory || getChildCategoryOptions(editForm.category, editForm.subcategory).length === 0}
+                              onChange={(event) => setEditForm((prev) => ({ ...prev, childCategory: event.target.value }))}
+                            >
+                              <option value="">Select Child Category</option>
+                              {getChildCategoryOptions(editForm.category, editForm.subcategory).map((option) => <option key={option}>{option}</option>)}
                             </select>
                           </div>
                           <div className="col-md-4">
@@ -1537,14 +1667,27 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                               onChange={(event) => setEditForm((prev) => ({ ...prev, pricePerMaund: event.target.value }))}
                             />
                           </div>
-                          <div className="col-12">
-                            <label className="form-label">Description</label>
-                            <textarea
-                              className="form-control"
-                              rows={3}
-                              value={editForm.description}
-                              onChange={(event) => setEditForm((prev) => ({ ...prev, description: event.target.value }))}
-                            ></textarea>
+                          <label className="form-label">Description</label>
+                          <textarea
+                            className="form-control"
+                            rows={3}
+                            value={editForm.description}
+                            onChange={(event) => setEditForm((prev) => ({ ...prev, description: event.target.value }))}
+                          ></textarea>
+
+                          {editForm.extraInfo?.map((info, idx) => (
+                            <div key={idx} className="col-12">
+                              <div className="input-group">
+                                <input className="form-control" placeholder="Label (e.g. Color)" value={info.label} onChange={(e) => updateExtraInfo(idx, "label", e.target.value, true)} />
+                                <input className="form-control" placeholder="Information" value={info.value} onChange={(e) => updateExtraInfo(idx, "value", e.target.value, true)} />
+                                <button type="button" className="btn btn-outline-danger" onClick={() => removeExtraInfo(idx, true)}><i className="fa-solid fa-times"></i></button>
+                              </div>
+                            </div>
+                          ))}
+                          <div className="col-12 mt-2">
+                            <button type="button" className="btn btn-sm btn-outline-success" onClick={() => addExtraInfo(true)}>
+                              <i className="fa-solid fa-plus me-1"></i>Add Extra Info
+                            </button>
                           </div>
                           <div className="col-12">
                             <label className="form-label">Update Images (multiple)</label>
@@ -1579,11 +1722,11 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                                 ))}
                               </div>
                             )}
-                          </div>
-                          <div className="col-12">
-                            <button className="btn btn-primary px-4" type="submit" disabled={isUpdatingListing}>
-                              {isUpdatingListing ? "Saving..." : "Update Listing"}
-                            </button>
+                            <div className="col-12 mt-3">
+                              <button className="btn btn-primary px-4" type="submit" disabled={isUpdatingListing}>
+                                {isUpdatingListing ? "Saving..." : "Update Listing"}
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </form>
@@ -1637,7 +1780,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                             </div>
 
                             <div className="listing-row-right">
-                              <span className="badge text-bg-light border me-2">{resolveListingCategory(listing.category)}</span>
+                              <span className="badge text-bg-light border me-2">{listing.category}</span>
                               <strong className="text-success me-3">
                                 PKR {listing.pricePerMaund.toLocaleString()}
                               </strong>
@@ -2169,159 +2312,160 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
               ) : null}
             </div>
           </div>
-        )
-        }
-      </div >
+        )}
+      </div>
 
-      {showBroadcastModal && (
-        <div className="category-modal-backdrop" onClick={() => setShowBroadcastModal(false)}>
-          <div className="category-modal listing-detail-modal card border shadow-sm rounded-4 bg-white" onClick={(event) => event.stopPropagation()}>
-            <div className="card-body p-4 p-md-5">
-              <div className="d-flex justify-content-between align-items-center mb-4">
-                <h3 className="h5 fw-bold mb-0">Post New Requirement</h3>
-                <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => setShowBroadcastModal(false)}>
-                  Close
-                </button>
-              </div>
-              <form onSubmit={async (event) => {
-                event.preventDefault();
-                if (!sessionUser) return;
-                setIsSubmittingBroadcast(true);
-                try {
-                  const response = await fetch("/api/broadcasts", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ userId: sessionUser.id, ...broadcastForm }),
-                  });
-                  const data = await response.json();
-                  if (response.ok && data.ok) {
-                    setBroadcastForm({
-                      category: "",
-                      grade: "",
-                      requirementDetails: "",
-                      requiredQuantity: "",
-                      targetPricePerMaund: "",
-                      city: "",
-                      deliveryLocation: "",
-                      paymentTerms: "Cash on Delivery",
-                    });
-                    setShowBroadcastModal(false);
-                    setBroadcastsMessage("Requirement broadcasted successfully!");
-                    void loadBroadcasts();
-                  } else {
-                    setBroadcastsMessage(data.message || "Failed to post requirement.");
-                  }
-                } catch {
-                  setBroadcastsMessage("Network error. Please try again.");
-                } finally {
-                  setIsSubmittingBroadcast(false);
-                }
-              }}>
-                <div className="row g-3">
-                  <div className="col-md-6">
-                    <label className="form-label fw-semibold">Category <span className="text-danger">*</span></label>
-                    <select
-                      className="form-select"
-                      required
-                      value={broadcastForm.category}
-                      onChange={(e) => setBroadcastForm((p) => ({ ...p, category: e.target.value }))}
-                    >
-                      <option value="" disabled>Select Category...</option>
-                      {categories.map((cat) => (
-                        <option key={cat.id} value={cat.name}>{cat.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="col-md-6">
-                    <label className="form-label fw-semibold">Grade <span className="text-danger">*</span></label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="e.g. A-Grade, Premium"
-                      required
-                      value={broadcastForm.grade}
-                      onChange={(e) => setBroadcastForm((p) => ({ ...p, grade: e.target.value }))}
-                    />
-                  </div>
-                  <div className="col-12">
-                    <label className="form-label fw-semibold">What are you looking for? <span className="text-danger">*</span></label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="e.g. Need 100 Tons Super Basmati Rice"
-                      required
-                      value={broadcastForm.requirementDetails}
-                      onChange={(e) => setBroadcastForm((p) => ({ ...p, requirementDetails: e.target.value }))}
-                    />
-                  </div>
-                  <div className="col-md-6">
-                    <label className="form-label fw-semibold">Quantity Required</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="e.g. 50 Tons"
-                      value={broadcastForm.requiredQuantity}
-                      onChange={(e) => setBroadcastForm((p) => ({ ...p, requiredQuantity: e.target.value }))}
-                    />
-                  </div>
-                  <div className="col-md-6">
-                    <label className="form-label fw-semibold">Target Price (PKR/Maund)</label>
-                    <input
-                      type="number"
-                      className="form-control"
-                      placeholder="Your budget"
-                      value={broadcastForm.targetPricePerMaund}
-                      onChange={(e) => setBroadcastForm((p) => ({ ...p, targetPricePerMaund: e.target.value }))}
-                    />
-                  </div>
-                  <div className="col-md-6">
-                    <label className="form-label fw-semibold">City <span className="text-danger">*</span></label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="e.g. Lahore"
-                      required
-                      value={broadcastForm.city}
-                      onChange={(e) => setBroadcastForm((p) => ({ ...p, city: e.target.value }))}
-                    />
-                  </div>
-                  <div className="col-md-6">
-                    <label className="form-label fw-semibold">Delivery Location</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="Detailed address"
-                      value={broadcastForm.deliveryLocation}
-                      onChange={(e) => setBroadcastForm((p) => ({ ...p, deliveryLocation: e.target.value }))}
-                    />
-                  </div>
-                  <div className="col-md-6">
-                    <label className="form-label fw-semibold">Payment Terms</label>
-                    <select
-                      className="form-select"
-                      value={broadcastForm.paymentTerms}
-                      onChange={(e) => setBroadcastForm((p) => ({ ...p, paymentTerms: e.target.value }))}
-                    >
-                      <option>Cash on Delivery</option>
-                      <option>Bank Transfer (Advance)</option>
-                      <option>50% Advance / 50% Delivery</option>
-                    </select>
-                  </div>
-                  <div className="col-12 mt-3">
-                    <button type="submit" className="btn btn-success btn-lg w-100" disabled={isSubmittingBroadcast}>
-                      {isSubmittingBroadcast ? (
-                        <><span className="spinner-border spinner-border-sm me-2" role="status"></span>Broadcasting...</>
-                      ) : (
-                        <><i className="fa-solid fa-paper-plane me-2"></i>Broadcast Requirement to All Sellers</>
-                      )}
-                    </button>
-                  </div>
+      {
+        showBroadcastModal && (
+          <div className="category-modal-backdrop" onClick={() => setShowBroadcastModal(false)}>
+            <div className="category-modal listing-detail-modal card border shadow-sm rounded-4 bg-white" onClick={(event) => event.stopPropagation()}>
+              <div className="card-body p-4 p-md-5">
+                <div className="d-flex justify-content-between align-items-center mb-4">
+                  <h3 className="h5 fw-bold mb-0">Post New Requirement</h3>
+                  <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => setShowBroadcastModal(false)}>
+                    Close
+                  </button>
                 </div>
-              </form>
+                <form onSubmit={async (event) => {
+                  event.preventDefault();
+                  if (!sessionUser) return;
+                  setIsSubmittingBroadcast(true);
+                  try {
+                    const response = await fetch("/api/broadcasts", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ userId: sessionUser.id, ...broadcastForm }),
+                    });
+                    const data = await response.json();
+                    if (response.ok && data.ok) {
+                      setBroadcastForm({
+                        category: "",
+                        grade: "",
+                        requirementDetails: "",
+                        requiredQuantity: "",
+                        targetPricePerMaund: "",
+                        city: "",
+                        deliveryLocation: "",
+                        paymentTerms: "Cash on Delivery",
+                      });
+                      setShowBroadcastModal(false);
+                      setBroadcastsMessage("Requirement broadcasted successfully!");
+                      void loadBroadcasts();
+                    } else {
+                      setBroadcastsMessage(data.message || "Failed to post requirement.");
+                    }
+                  } catch {
+                    setBroadcastsMessage("Network error. Please try again.");
+                  } finally {
+                    setIsSubmittingBroadcast(false);
+                  }
+                }}>
+                  <div className="row g-3">
+                    <div className="col-md-6">
+                      <label className="form-label fw-semibold">Category <span className="text-danger">*</span></label>
+                      <select
+                        className="form-select"
+                        required
+                        value={broadcastForm.category}
+                        onChange={(e) => setBroadcastForm((p) => ({ ...p, category: e.target.value }))}
+                      >
+                        <option value="" disabled>Select Category...</option>
+                        {categories.map((cat) => (
+                          <option key={cat.id} value={cat.name}>{cat.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label fw-semibold">Grade <span className="text-danger">*</span></label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="e.g. A-Grade, Premium"
+                        required
+                        value={broadcastForm.grade}
+                        onChange={(e) => setBroadcastForm((p) => ({ ...p, grade: e.target.value }))}
+                      />
+                    </div>
+                    <div className="col-12">
+                      <label className="form-label fw-semibold">What are you looking for? <span className="text-danger">*</span></label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="e.g. Need 100 Tons Super Basmati Rice"
+                        required
+                        value={broadcastForm.requirementDetails}
+                        onChange={(e) => setBroadcastForm((p) => ({ ...p, requirementDetails: e.target.value }))}
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label fw-semibold">Quantity Required</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="e.g. 50 Tons"
+                        value={broadcastForm.requiredQuantity}
+                        onChange={(e) => setBroadcastForm((p) => ({ ...p, requiredQuantity: e.target.value }))}
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label fw-semibold">Target Price (PKR/Maund)</label>
+                      <input
+                        type="number"
+                        className="form-control"
+                        placeholder="Your budget"
+                        value={broadcastForm.targetPricePerMaund}
+                        onChange={(e) => setBroadcastForm((p) => ({ ...p, targetPricePerMaund: e.target.value }))}
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label fw-semibold">City <span className="text-danger">*</span></label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="e.g. Lahore"
+                        required
+                        value={broadcastForm.city}
+                        onChange={(e) => setBroadcastForm((p) => ({ ...p, city: e.target.value }))}
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label fw-semibold">Delivery Location</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="Detailed address"
+                        value={broadcastForm.deliveryLocation}
+                        onChange={(e) => setBroadcastForm((p) => ({ ...p, deliveryLocation: e.target.value }))}
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label fw-semibold">Payment Terms</label>
+                      <select
+                        className="form-select"
+                        value={broadcastForm.paymentTerms}
+                        onChange={(e) => setBroadcastForm((p) => ({ ...p, paymentTerms: e.target.value }))}
+                      >
+                        <option>Cash on Delivery</option>
+                        <option>Bank Transfer (Advance)</option>
+                        <option>50% Advance / 50% Delivery</option>
+                      </select>
+                    </div>
+                    <div className="col-12 mt-3">
+                      <button type="submit" className="btn btn-success btn-lg w-100" disabled={isSubmittingBroadcast}>
+                        {isSubmittingBroadcast ? (
+                          <><span className="spinner-border spinner-border-sm me-2" role="status"></span>Broadcasting...</>
+                        ) : (
+                          <><i className="fa-solid fa-paper-plane me-2"></i>Broadcast Requirement to All Sellers</>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {
         editingCategoryId && (
@@ -2441,6 +2585,19 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                     </div>
                   </div>
                 </div>
+
+                {selectedListing.extraInfo && selectedListing.extraInfo.length > 0 && (
+                  <div className="row g-3 mb-3 border-top pt-3">
+                    {selectedListing.extraInfo.map((info, idx) => (
+                      <div key={idx} className="col-md-6">
+                        <div className="detail-item">
+                          <small>{info.label}</small>
+                          <p className="mb-0 fw-semibold">{info.value}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 <div className="detail-item mb-3">
                   <small>Description</small>
@@ -3193,37 +3350,61 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
       `}</style>
 
       {/* UPGRADE MODAL */}
-      {showUpgradeModal && (
-        <div className="category-modal-backdrop" onClick={() => setShowUpgradeModal(false)}>
-          <div className="category-modal card border shadow-sm rounded-4 bg-white" onClick={(event) => event.stopPropagation()} style={{ maxWidth: '450px' }}>
-            <div className="card-header bg-white border-bottom p-4 d-flex justify-content-between align-items-center">
-              <h5 className="mb-0 fw-bold text-dark">
-                <i className="fa-solid fa-crown text-warning me-2"></i>Upgrade Required
-              </h5>
-              <button
-                type="button"
-                className="btn-close shadow-none"
-                onClick={() => setShowUpgradeModal(false)}
-                aria-label="Close"
-              ></button>
-            </div>
-
-            <div className="card-body p-4 text-center">
-              <div className="mb-4 mt-2">
-                <i className="fa-solid fa-unlock-keyhole fa-4x text-success opacity-75"></i>
+      {
+        showUpgradeModal && (
+          <div className="category-modal-backdrop" onClick={() => setShowUpgradeModal(false)}>
+            <div className="category-modal card border shadow-sm rounded-4 bg-white" onClick={(event) => event.stopPropagation()} style={{ maxWidth: '450px' }}>
+              <div className="card-header bg-white border-bottom p-4 d-flex justify-content-between align-items-center">
+                <h5 className="mb-0 fw-bold text-dark">
+                  <i className="fa-solid fa-crown text-warning me-2"></i>Upgrade Required
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close shadow-none"
+                  onClick={() => setShowUpgradeModal(false)}
+                  aria-label="Close"
+                ></button>
               </div>
-              <h4 className="fw-bolder mb-3">Unlock Premium Features</h4>
-              <p className="text-muted mb-4">
-                You need an active subscription plan to {role === "seller" ? "create new listings" : "post broadcast requirements"}.
-                Upgrade now to reach more verified users and grow your business!
-              </p>
 
-              <div className="d-grid gap-3 mt-4">
-                <Link href="/#pricing-section" className="btn btn-success btn-lg fw-bold rounded-3">
-                  <i className="fa-solid fa-rocket me-2"></i>View Pricing Plans
-                </Link>
-                <button type="button" className="btn btn-light" onClick={() => setShowUpgradeModal(false)}>
+              <div className="card-body p-4 text-center">
+                <div className="mb-4 mt-2">
+                  <i className="fa-solid fa-unlock-keyhole fa-4x text-success opacity-75"></i>
+                </div>
+                <h4 className="fw-bolder mb-3">Unlock Premium Features</h4>
+                <p className="text-muted mb-4">
+                  You need an active subscription plan to {role === "seller" ? "create new listings" : "post broadcast requirements"}.
+                  Upgrade now to reach more verified users and grow your business!
+                </p>
+
+                <div className="d-grid gap-3 mt-4">
+                  <Link href="/#pricing-section" className="btn btn-success btn-lg fw-bold rounded-3">
+                    <i className="fa-solid fa-rocket me-2"></i>View Pricing Plans
+                  </Link>
+                  <button type="button" className="btn btn-light" onClick={() => setShowUpgradeModal(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      }
+      {/* CONFIRMATION MODAL */}
+      {showConfirmModal && (
+        <div className="category-modal-backdrop" onClick={() => setShowConfirmModal(false)}>
+          <div className="category-modal card border shadow-sm rounded-4 bg-white" onClick={(event) => event.stopPropagation()} style={{ maxWidth: '400px' }}>
+            <div className="card-body p-4 text-center">
+              <div className="mb-3 text-warning">
+                <i className="fa-solid fa-circle-exclamation fa-3x"></i>
+              </div>
+              <h4 className="fw-bold mb-2">{confirmModalConfig.title}</h4>
+              <p className="text-muted mb-4">{confirmModalConfig.message}</p>
+              <div className="d-grid gap-2 d-md-flex justify-content-center">
+                <button type="button" className="btn btn-light px-4" onClick={() => setShowConfirmModal(false)}>
                   Cancel
+                </button>
+                <button type="button" className="btn btn-danger px-4" onClick={confirmModalConfig.onConfirm}>
+                  Confirm Delete
                 </button>
               </div>
             </div>

@@ -11,6 +11,7 @@ export type ListingDocument = {
   pricePerMaund: number;
   description?: string;
   images: string[];
+  extraInfo?: { label: string; value: string }[];
   createdBy: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -28,6 +29,12 @@ const listingSchema = new Schema<ListingDocument>(
     pricePerMaund: { type: Number, required: true, min: 0 },
     description: { type: String, trim: true },
     images: [{ type: String }],
+    extraInfo: [
+      {
+        label: { type: String, trim: true },
+        value: { type: String, trim: true },
+      },
+    ],
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
   },
   { timestamps: true }

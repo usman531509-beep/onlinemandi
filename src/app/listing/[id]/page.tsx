@@ -19,6 +19,7 @@ type Listing = {
     quantity: string;
     pricePerMaund: number;
     description: string;
+    extraInfo?: { label: string; value: string }[];
     createdAt: string;
     createdBy: {
         id: string;
@@ -432,6 +433,22 @@ export default function ListingDetailPage() {
                                         <p className="text-muted" style={{ lineHeight: "1.7", fontSize: "0.95rem" }}>
                                             {listing.description || "No description provided."}
                                         </p>
+
+                                        {listing.extraInfo && listing.extraInfo.length > 0 && (
+                                            <div className="mt-4 pt-3 border-top">
+                                                <h6 className="fw-bold mb-3 text-uppercase" style={{ letterSpacing: "0.5px", fontSize: "0.9rem" }}>Additional Information</h6>
+                                                <div className="row g-3">
+                                                    {listing.extraInfo.map((info, idx) => (
+                                                        <div key={idx} className="col-sm-6">
+                                                            <div className="bg-light rounded p-2 px-3 border border-light h-100">
+                                                                <small className="text-muted text-uppercase d-block fw-bold" style={{ fontSize: "0.7rem", letterSpacing: "0.5px" }}>{info.label}</small>
+                                                                <div className="fw-medium text-dark">{info.value}</div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>

@@ -10,6 +10,11 @@ type CategoryBody = {
   role?: string;
   name?: string;
   description?: string;
+  subcategories?: {
+    id?: string;
+    name: string;
+    children?: { id?: string; name: string }[];
+  }[];
 };
 
 async function validateAdmin(userId?: string, role?: string) {
@@ -55,6 +60,7 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
     const body = (await request.json()) as CategoryBody;
     const name = body.name?.trim();
     const description = body.description?.trim();
+    const subcategories = body.subcategories;
 
     if (!name) {
       return NextResponse.json({ ok: false, message: "Category name is required." }, { status: 400 });
@@ -81,6 +87,30 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
 
     category.name = name;
     category.description = description;
+    if (Array.isArray(subcategories)) {
+      category.subcategories = subcategories
+        .filter((subcategory) => subcategory.name && subcategory.name.trim().length > 0)
+        .map((subcategory) => {
+          const payload: {
+            _id?: string;
+            name: string;
+            children: { _id?: string; name: string }[];
+          } = {
+            name: subcategory.name.trim(),
+            children: Array.isArray(subcategory.children)
+              ? subcategory.children
+                  .filter((child) => child.name && child.name.trim().length > 0)
+                  .map((child) => {
+                    const childPayload: { _id?: string; name: string } = { name: child.name.trim() };
+                    if (child.id) childPayload._id = child.id;
+                    return childPayload;
+                  })
+              : [],
+          };
+          if (subcategory.id) payload._id = subcategory.id;
+          return payload;
+        });
+    }
     await category.save();
 
     return NextResponse.json({ ok: true, message: "Category updated successfully." }, { status: 200 });

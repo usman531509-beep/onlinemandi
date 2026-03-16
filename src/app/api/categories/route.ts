@@ -10,6 +10,14 @@ type CategoryResponse = {
   name: string;
   description: string;
   createdAt: Date;
+  subcategories: {
+    id: string;
+    name: string;
+    children: {
+      id: string;
+      name: string;
+    }[];
+  }[];
 };
 
 function mapCategory(category: {
@@ -17,12 +25,25 @@ function mapCategory(category: {
   name: string;
   description?: string;
   createdAt: Date;
+  subcategories?: {
+    _id: mongoose.Types.ObjectId;
+    name: string;
+    children?: { _id: mongoose.Types.ObjectId; name: string }[];
+  }[];
 }): CategoryResponse {
   return {
     id: String(category._id),
     name: category.name,
     description: category.description || "",
     createdAt: category.createdAt,
+    subcategories: (category.subcategories || []).map((subcategory) => ({
+      id: String(subcategory._id),
+      name: subcategory.name,
+      children: (subcategory.children || []).map((child) => ({
+        id: String(child._id),
+        name: child.name,
+      })),
+    })),
   };
 }
 
@@ -91,12 +112,17 @@ export async function POST(request: Request) {
       role?: string;
       name?: string;
       description?: string;
+      subcategories?: {
+        name: string;
+        children?: { name: string }[];
+      }[];
     };
 
     const userId = body.userId;
     const role = body.role;
     const name = body.name?.trim();
     const description = body.description?.trim();
+    const subcategories = body.subcategories;
 
     if (!userId || !role || !name) {
       return NextResponse.json({ ok: false, message: "userId, role and name are required." }, { status: 400 });
@@ -122,10 +148,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, message: "Category already exists." }, { status: 409 });
     }
 
+    const safeSubcategories = Array.isArray(subcategories)
+      ? subcategories
+          .filter((subcategory) => subcategory.name && subcategory.name.trim().length > 0)
+          .map((subcategory) => ({
+            name: subcategory.name.trim(),
+            children: Array.isArray(subcategory.children)
+              ? subcategory.children
+                  .filter((child) => child.name && child.name.trim().length > 0)
+                  .map((child) => ({ name: child.name.trim() }))
+              : [],
+          }))
+      : [];
+
     const created = await Category.create({
       name,
       description,
       createdBy: user._id,
+      subcategories: safeSubcategories,
     });
 
     return NextResponse.json(

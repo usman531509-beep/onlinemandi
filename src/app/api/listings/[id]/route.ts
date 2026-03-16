@@ -20,6 +20,7 @@ type PopulatedListing = {
   pricePerMaund: number;
   description?: string;
   images?: string[];
+  extraInfo?: { label: string; value: string }[];
   createdAt: Date;
   createdBy?:
   | {
@@ -50,6 +51,7 @@ function mapListing(listing: PopulatedListing) {
     pricePerMaund: listing.pricePerMaund,
     description: listing.description || "",
     images: listing.images || [],
+    extraInfo: listing.extraInfo || [],
     createdAt: listing.createdAt,
     createdBy: listing.createdBy
       ? {
@@ -148,6 +150,7 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
       pricePerMaund?: number;
       description?: string;
       images?: string[];
+      extraInfo?: { label: string; value: string }[];
     };
 
     await connectToDatabase();
@@ -175,6 +178,12 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
     const description = body.description?.trim();
     const images = Array.isArray(body.images)
       ? body.images.filter((item) => typeof item === "string").slice(0, 8)
+      : [];
+    const extraInfo = Array.isArray(body.extraInfo)
+      ? body.extraInfo.filter((item) => item.label && item.value).map(item => ({
+        label: String(item.label).trim(),
+        value: String(item.value).trim()
+      }))
       : [];
     const pricePerMaund = Number(body.pricePerMaund);
 
@@ -218,6 +227,7 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
           pricePerMaund,
           description,
           images,
+          extraInfo,
           updatedAt: new Date(),
         },
       }
