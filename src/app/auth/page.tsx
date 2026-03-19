@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useEffect } from "react";
 
 type AuthMode = "login" | "signup";
 type UserRole = "admin" | "buyer" | "seller";
@@ -31,7 +31,30 @@ export default function AuthPage() {
     role: "buyer" as UserRole,
   });
 
+  const performSessionCleanup = () => {
+    const pendingBroadcast = localStorage.getItem("mandi:pendingBroadcast");
+
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith("mandi:")) {
+            keysToRemove.push(key);
+        }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+
+    if (pendingBroadcast) {
+        localStorage.setItem("mandi:pendingBroadcast", pendingBroadcast);
+    }
+  };
+
+  useEffect(() => {
+    // Clear old session user and drafts immediately to prevent session overlap
+    performSessionCleanup();
+  }, []);
+
   const storeSessionAndRedirect = (user: SessionUser) => {
+    performSessionCleanup();
     localStorage.setItem("mandi:sessionUser", JSON.stringify(user));
 
     // If there is a pending broadcast, redirect to post-requirement to auto-submit

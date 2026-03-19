@@ -104,7 +104,7 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
     setCategoriesMessage("");
 
     try {
-      const response = await fetch("/api/categories");
+      const response = await fetch("/api/categories", { cache: "no-store" });
       const data = (await response.json()) as {
         ok: boolean;
         message?: string;

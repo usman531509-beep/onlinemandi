@@ -5,6 +5,8 @@ import { connectToDatabase } from "@/lib/mongodb";
 import Category from "@/models/Category";
 import User, { UserRole } from "@/models/User";
 
+export const dynamic = "force-dynamic";
+
 type CategoryResponse = {
   id: string;
   name: string;

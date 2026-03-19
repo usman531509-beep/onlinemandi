@@ -412,7 +412,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
         sessionUser && hasAccess
           ? `?role=${encodeURIComponent(sessionUser.role)}&userId=${encodeURIComponent(sessionUser.id)}`
           : "";
-      const response = await fetch(`/api/categories${query}`);
+      const response = await fetch(`/api/categories${query}`, { cache: "no-store" });
       const data = (await response.json()) as {
         ok: boolean;
         message?: string;

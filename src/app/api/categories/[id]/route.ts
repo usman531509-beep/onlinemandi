@@ -154,6 +154,9 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
         });
     }
 
+    console.log("PUT Category API: body.customFields ->", body.customFields);
+    console.log("PUT Category API: updatePayload.customFields ->", updatePayload.customFields);
+
     await Category.updateOne(
       { _id: id },
       { $set: updatePayload }
