@@ -31,6 +31,9 @@ function ReviewsContent({ sessionUser }: { sessionUser: { id: string; role: stri
     const [error, setError] = useState("");
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
+    const [searchQuery, setSearchQuery] = useState("");
+    const [filterRating, setFilterRating] = useState("all");
+
     const [confirmModal, setConfirmModal] = useState<{
         isOpen: boolean;
         title: string;
@@ -171,6 +174,27 @@ function ReviewsContent({ sessionUser }: { sessionUser: { id: string; role: stri
                     </span>
                 </div>
 
+                <div className="bg-light border-bottom p-3">
+                    <div className="row g-3">
+                        <div className="col-md-9">
+                            <div className="input-group">
+                                <span className="input-group-text bg-white border-end-0"><i className="fa-solid fa-search text-muted"></i></span>
+                                <input type="text" className="form-control border-start-0 ps-0" placeholder="Search by reviewer, listing, or comment..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                            </div>
+                        </div>
+                        <div className="col-md-3">
+                            <select className="form-select" value={filterRating} onChange={(e) => setFilterRating(e.target.value)}>
+                                <option value="all">All Ratings</option>
+                                <option value="5">5 Stars</option>
+                                <option value="4">4 Stars</option>
+                                <option value="3">3 Stars</option>
+                                <option value="2">2 Stars</option>
+                                <option value="1">1 Star</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
                 <div className="card-body p-0">
                     <div className="table-responsive">
                         <table className="table table-hover align-middle mb-0">
@@ -185,12 +209,31 @@ function ReviewsContent({ sessionUser }: { sessionUser: { id: string; role: stri
                                 </tr>
                             </thead>
                             <tbody>
-                                {reviews.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={6} className="text-center py-5 text-muted">No reviews found</td>
-                                    </tr>
-                                ) : (
-                                    reviews.map((r) => (
+                                {(() => {
+                                    const filteredReviews = reviews.filter(r => {
+                                        if (filterRating !== "all" && r.rating.toString() !== filterRating) return false;
+
+                                        if (searchQuery) {
+                                            const query = searchQuery.toLowerCase();
+                                            const matchesListing = r.listingId?.title?.toLowerCase().includes(query);
+                                            const matchesReviewerName = r.reviewerName?.toLowerCase().includes(query);
+                                            const matchesReviewerEmail = r.reviewerEmail?.toLowerCase().includes(query);
+                                            const matchesComment = r.comment?.toLowerCase().includes(query);
+                                            if (!matchesListing && !matchesReviewerName && !matchesReviewerEmail && !matchesComment) return false;
+                                        }
+
+                                        return true;
+                                    });
+
+                                    if (filteredReviews.length === 0) {
+                                        return (
+                                            <tr>
+                                                <td colSpan={6} className="text-center py-5 text-muted">No reviews found</td>
+                                            </tr>
+                                        );
+                                    }
+
+                                    return filteredReviews.map((r) => (
                                         <tr key={r._id}>
                                             <td className="ps-4 px-4 py-3 text-muted small whitespace-nowrap">
                                                 {new Date(r.createdAt).toLocaleDateString()}
@@ -238,8 +281,8 @@ function ReviewsContent({ sessionUser }: { sessionUser: { id: string; role: stri
                                                 </button>
                                             </td>
                                         </tr>
-                                    ))
-                                )}
+                                    ));
+                                })()}
                             </tbody>
                         </table>
                     </div>

@@ -142,9 +142,9 @@ export async function POST(request: Request) {
       ? body.images.filter((item) => typeof item === "string").slice(0, 8)
       : [];
     const extraInfo = Array.isArray(body.extraInfo)
-      ? body.extraInfo.filter((item) => item.label && item.value).map(item => ({
+      ? body.extraInfo.filter((item) => item.label).map(item => ({
         label: String(item.label).trim(),
-        value: String(item.value).trim()
+        value: String(item.value ?? "").trim()
       }))
       : [];
     const pricePerMaund = Number(body.pricePerMaund);

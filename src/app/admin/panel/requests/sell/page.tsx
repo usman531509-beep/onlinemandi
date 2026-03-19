@@ -32,6 +32,10 @@ function SellRequestsContent({ sessionUser }: { sessionUser: { id: string; role:
     const [error, setError] = useState("");
     const [selectedRequest, setSelectedRequest] = useState<SellRequest | null>(null);
 
+    const [searchQuery, setSearchQuery] = useState("");
+    const [filterCategory, setFilterCategory] = useState("all");
+    const [filterStatus, setFilterStatus] = useState("all");
+
     useEffect(() => {
         if (sessionUser.role !== "admin") return;
         fetchRequests();
@@ -80,6 +84,33 @@ function SellRequestsContent({ sessionUser }: { sessionUser: { id: string; role:
                     </span>
                 </div>
 
+                <div className="bg-light border-bottom p-3">
+                    <div className="row g-3">
+                        <div className="col-md-6">
+                            <div className="input-group">
+                                <span className="input-group-text bg-white border-end-0"><i className="fa-solid fa-search text-muted"></i></span>
+                                <input type="text" className="form-control border-start-0 ps-0" placeholder="Search by crop, district, email, or phone..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                            </div>
+                        </div>
+                        <div className="col-md-3">
+                            <select className="form-select" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
+                                <option value="all">All Crops</option>
+                                {Array.from(new Set(requests.map(r => r.cropType))).filter(Boolean).map(cat => (
+                                    <option key={cat} value={cat}>{cat}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="col-md-3">
+                            <select className="form-select" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+                                <option value="all">All Statuses</option>
+                                <option value="pending">Pending</option>
+                                <option value="reviewed">Reviewed</option>
+                                <option value="closed">Closed</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
                 <div className="card-body p-0">
                     <div className="table-responsive">
                         <table className="table table-hover align-middle mb-0">
@@ -93,12 +124,31 @@ function SellRequestsContent({ sessionUser }: { sessionUser: { id: string; role:
                                 </tr>
                             </thead>
                             <tbody>
-                                {requests.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={5} className="text-center py-5 text-muted">No sell requests found</td>
-                                    </tr>
-                                ) : (
-                                    requests.map((req) => (
+                                {(() => {
+                                    const filteredRequests = requests.filter(req => {
+                                        if (filterStatus !== "all" && req.status !== filterStatus) return false;
+                                        if (filterCategory !== "all" && req.cropType !== filterCategory) return false;
+                                        
+                                        if (searchQuery) {
+                                            const query = searchQuery.toLowerCase();
+                                            const matchesCategory = req.cropType?.toLowerCase().includes(query);
+                                            const matchesDistrict = req.district?.toLowerCase().includes(query);
+                                            const matchesMobile = req.mobileNumber?.toLowerCase().includes(query);
+                                            const matchesEmail = req.email?.toLowerCase().includes(query);
+                                            if (!matchesCategory && !matchesDistrict && !matchesMobile && !matchesEmail) return false;
+                                        }
+                                        return true;
+                                    });
+
+                                    if (filteredRequests.length === 0) {
+                                        return (
+                                            <tr>
+                                                <td colSpan={5} className="text-center py-5 text-muted">No sell requests found</td>
+                                            </tr>
+                                        );
+                                    }
+
+                                    return filteredRequests.map((req) => (
                                         <tr
                                             key={req._id}
                                             className="cursor-pointer"
@@ -127,8 +177,8 @@ function SellRequestsContent({ sessionUser }: { sessionUser: { id: string; role:
                                                 </span>
                                             </td>
                                         </tr>
-                                    ))
-                                )}
+                                    ));
+                                })()}
                             </tbody>
                         </table>
                     </div>

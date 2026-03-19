@@ -54,6 +54,7 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
   const [categoriesMessage, setCategoriesMessage] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [categoryName, setCategoryName] = useState("");
   const [categoryDescription, setCategoryDescription] = useState("");
@@ -130,12 +131,20 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
   }, [loadCategories]);
 
   const categoryTree = useMemo<CategoryNode[]>(() => {
-    return categories.map((category, idx) => ({
+    let filtered = categories;
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = categories.filter(c => 
+        c.name.toLowerCase().includes(query) || 
+        (c.description && c.description.toLowerCase().includes(query))
+      );
+    }
+    return filtered.map((category, idx) => ({
       ...category,
       id: category.id || `category-${idx}`,
       subcategories: Array.isArray(category.subcategories) ? category.subcategories : [],
     }));
-  }, [categories]);
+  }, [categories, searchQuery]);
 
   const selectedCategory = useMemo(
     () => categoryTree.find((category) => category.id === selectedCategoryId) || categoryTree[0],
@@ -834,14 +843,20 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
 
 
       <section className="card border shadow-sm rounded-4 p-4 mb-4 bg-white">
-        <div className="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+        <div className="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
           <div>
             <h3 className="h5 fw-bold mb-1" style={{ color: "#1b4332" }}>Category Hierarchy</h3>
             <p className="text-muted mb-0 small">Organize categories across three levels for consistent listing taxonomy.</p>
           </div>
-          <div className="hierarchy-legend">
-            Category <i className="fa-solid fa-chevron-right"></i> Subcategory{" "}
-            <i className="fa-solid fa-chevron-right"></i> 3rd-level Child Category
+          <div className="d-flex align-items-center flex-wrap gap-3">
+            <div className="input-group" style={{ maxWidth: "300px" }}>
+              <span className="input-group-text bg-light border-end-0"><i className="fa-solid fa-search text-muted"></i></span>
+              <input type="text" className="form-control border-start-0 ps-0 form-control-sm" placeholder="Search categories..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+            </div>
+            <div className="hierarchy-legend m-0">
+              Category <i className="fa-solid fa-chevron-right"></i> Subcategory{" "}
+              <i className="fa-solid fa-chevron-right"></i> Child
+            </div>
           </div>
         </div>
         <div className="hierarchy-wrapper">

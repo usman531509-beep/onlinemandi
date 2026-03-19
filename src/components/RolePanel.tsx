@@ -194,6 +194,8 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
   const [listings, setListings] = useState<Listing[]>([]);
   const [isLoadingListings, setIsLoadingListings] = useState(false);
   const [listingsMessage, setListingsMessage] = useState("");
+  const [listingsSearch, setListingsSearch] = useState("");
+  const [listingsFilterCategory, setListingsFilterCategory] = useState("all");
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
@@ -230,6 +232,9 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
   const [broadcasts, setBroadcasts] = useState<BroadcastItem[]>([]);
   const [isLoadingBroadcasts, setIsLoadingBroadcasts] = useState(false);
   const [broadcastsMessage, setBroadcastsMessage] = useState("");
+  const [broadcastsSearch, setBroadcastsSearch] = useState("");
+  const [broadcastsFilterCategory, setBroadcastsFilterCategory] = useState("all");
+  const [broadcastsFilterStatus, setBroadcastsFilterStatus] = useState("all");
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
   const [isSubmittingBroadcast, setIsSubmittingBroadcast] = useState(false);
   const [broadcastForm, setBroadcastForm] = useState({
@@ -246,6 +251,9 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
   const [payments, setPayments] = useState<PaymentTransaction[]>([]);
   const [isLoadingPayments, setIsLoadingPayments] = useState(false);
   const [paymentsMessage, setPaymentsMessage] = useState("");
+  const [paymentsSearch, setPaymentsSearch] = useState("");
+  const [paymentsFilterStatus, setPaymentsFilterStatus] = useState("all");
+  const [paymentsFilterCurrency, setPaymentsFilterCurrency] = useState("all");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeSubscription, setActiveSubscription] = useState<any>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -766,6 +774,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
       setListingForm((prev) => ({ ...initialListingForm, category: prev.category, subcategory: prev.subcategory, childCategory: prev.childCategory }));
       setListingImages([]);
       setListingsMessage("Listing created successfully.");
+      setShowCreateListingModal(false);
       await loadListings();
     } catch {
       setListingsMessage("Network error while creating listing.");
@@ -907,6 +916,15 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
   const startEditListing = (listing: Listing) => {
     const parsedQuantity = parseQuantity(listing.quantity);
     const hierarchy = findHierarchy(listing.category);
+
+    // Merge category's current custom fields with listing's saved extraInfo
+    const cat = categories.find(c => c.name === hierarchy.category);
+    const savedInfo = listing.extraInfo || [];
+    const mergedExtraInfo = (cat?.customFields || []).map(f => {
+      const existing = savedInfo.find(e => e.label.toLowerCase() === f.label.toLowerCase());
+      return { label: f.label, value: existing?.value || "" };
+    });
+
     setEditingListingId(listing.id);
     setEditForm({
       title: listing.title,
@@ -918,7 +936,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
       quantityUnit: parsedQuantity.quantityUnit,
       pricePerMaund: String(listing.pricePerMaund),
       description: listing.description,
-      extraInfo: listing.extraInfo || [],
+      extraInfo: mergedExtraInfo,
     });
     setEditImages(listing.images || []);
     setListingsMessage("");
@@ -1465,20 +1483,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                                 ></textarea>
                               </div>
 
-                              {listingForm.extraInfo?.map((info, idx) => (
-                                <div key={idx} className="col-12">
-                                  <div className="input-group">
-                                    <input className="form-control" placeholder="Label (e.g. Color)" value={info.label} onChange={(e) => updateExtraInfo(idx, "label", e.target.value, false)} />
-                                    <input className="form-control" placeholder="Information" value={info.value} onChange={(e) => updateExtraInfo(idx, "value", e.target.value, false)} />
-                                    <button type="button" className="btn btn-outline-danger" onClick={() => removeExtraInfo(idx, false)}><i className="fa-solid fa-times"></i></button>
-                                  </div>
-                                </div>
-                              ))}
-                              <div className="col-12 mt-2">
-                                <button type="button" className="btn btn-sm btn-outline-success" onClick={() => addExtraInfo(false)}>
-                                  <i className="fa-solid fa-plus me-1"></i>Add Extra Info
-                                </button>
-                              </div>
+
                               <div className="col-12">
                                 <label className="form-label">Upload Images (multiple)</label>
                                 <input
@@ -1654,20 +1659,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                             onChange={(event) => setEditForm((prev) => ({ ...prev, description: event.target.value }))}
                           ></textarea>
 
-                          {editForm.extraInfo?.map((info, idx) => (
-                            <div key={idx} className="col-12">
-                              <div className="input-group">
-                                <input className="form-control" placeholder="Label (e.g. Color)" value={info.label} onChange={(e) => updateExtraInfo(idx, "label", e.target.value, true)} />
-                                <input className="form-control" placeholder="Information" value={info.value} onChange={(e) => updateExtraInfo(idx, "value", e.target.value, true)} />
-                                <button type="button" className="btn btn-outline-danger" onClick={() => removeExtraInfo(idx, true)}><i className="fa-solid fa-times"></i></button>
-                              </div>
-                            </div>
-                          ))}
-                          <div className="col-12 mt-2">
-                            <button type="button" className="btn btn-sm btn-outline-success" onClick={() => addExtraInfo(true)}>
-                              <i className="fa-solid fa-plus me-1"></i>Add Extra Info
-                            </button>
-                          </div>
+
                           <div className="col-12">
                             <label className="form-label">Update Images (multiple)</label>
                             <input
@@ -1714,14 +1706,46 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
 
                   {listingsMessage && <div className="alert alert-info py-2 rounded-3">{listingsMessage}</div>}
 
+                  <div className="row g-3 mb-4">
+                    <div className="col-md-8">
+                      <div className="input-group">
+                        <span className="input-group-text bg-white border-end-0"><i className="fa-solid fa-search text-muted"></i></span>
+                        <input type="text" className="form-control border-start-0 ps-0" placeholder="Search by title or city..." value={listingsSearch} onChange={(e) => setListingsSearch(e.target.value)} />
+                      </div>
+                    </div>
+                    <div className="col-md-4">
+                      <select className="form-select" value={listingsFilterCategory} onChange={(e) => setListingsFilterCategory(e.target.value)}>
+                        <option value="all">All Categories</option>
+                        {categories.map((c) => (
+                          <option key={c.name} value={c.name}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
                   <section className="card border shadow-sm rounded-4 p-0 overflow-hidden bg-white">
-                    {isLoadingListings ? (
-                      <div className="p-4 text-center text-muted">Loading listings...</div>
-                    ) : listings.length === 0 ? (
-                      <div className="p-4 text-center text-muted">No listings found.</div>
-                    ) : (
-                      <div className="listing-list">
-                        {listings.map((listing) => (
+                    {(() => {
+                        const filteredListings = listings.filter(listing => {
+                            if (listingsFilterCategory !== "all" && listing.category !== listingsFilterCategory) return false;
+                            if (listingsSearch) {
+                                const query = listingsSearch.toLowerCase();
+                                const matchesTitle = listing.title?.toLowerCase().includes(query);
+                                const matchesCity = listing.city?.toLowerCase().includes(query);
+                                if (!matchesTitle && !matchesCity) return false;
+                            }
+                            return true;
+                        });
+
+                        if (isLoadingListings) {
+                          return <div className="p-4 text-center text-muted">Loading listings...</div>;
+                        }
+                        if (filteredListings.length === 0) {
+                          return <div className="p-4 text-center text-muted">No listings found.</div>;
+                        }
+
+                        return (
+                          <div className="listing-list">
+                            {filteredListings.map((listing) => (
                           <div
                             role="button"
                             tabIndex={0}
@@ -1785,7 +1809,8 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                           </div>
                         ))}
                       </div>
-                    )}
+                    );
+                  })()}
                   </section>
                 </>
               ) : activeTab === "profile" ? (
@@ -2118,26 +2143,73 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
 
                   {broadcastsMessage && <div className="alert alert-info py-2 rounded-3">{broadcastsMessage}</div>}
 
-                  {isLoadingBroadcasts ? (
-                    <div className="text-center py-5 text-muted">
-                      <div className="spinner-border spinner-border-sm me-2" role="status"></div>
-                      Loading broadcastings...
+                  <div className="row g-3 mb-4">
+                    <div className="col-md-6">
+                      <div className="input-group">
+                        <span className="input-group-text bg-white border-end-0"><i className="fa-solid fa-search text-muted"></i></span>
+                        <input type="text" className="form-control border-start-0 ps-0" placeholder="Search by details, city, or buyer name..." value={broadcastsSearch} onChange={(e) => setBroadcastsSearch(e.target.value)} />
+                      </div>
                     </div>
-                  ) : broadcasts.length === 0 ? (
-                    <div className="card border shadow-sm rounded-4 p-5 text-center bg-white">
-                      <i className="fa-solid fa-bullhorn fa-3x text-muted mb-3"></i>
-                      <h5 className="fw-bold">No broadcastings yet</h5>
-                      <p className="text-muted mb-0">
-                        {role === "buyer"
-                          ? "You haven't posted any requirements yet."
-                          : "No buyer requirements have been posted yet."}
-                      </p>
+                    <div className="col-md-3">
+                      <select className="form-select" value={broadcastsFilterCategory} onChange={(e) => setBroadcastsFilterCategory(e.target.value)}>
+                        <option value="all">All Categories</option>
+                        {categories.map((c) => (
+                          <option key={c.name} value={c.name}>{c.name}</option>
+                        ))}
+                      </select>
                     </div>
-                  ) : (
-                    <div className="row g-3">
-                      {broadcasts.map((b) => (
-                        <div className="col-md-6" key={b.id}>
-                          <div className="card border shadow-sm rounded-4 h-100 bg-white">
+                    <div className="col-md-3">
+                      <select className="form-select" value={broadcastsFilterStatus} onChange={(e) => setBroadcastsFilterStatus(e.target.value)}>
+                        <option value="all">All Statuses</option>
+                        <option value="active">Active</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {(() => {
+                      const filteredBroadcasts = broadcasts.filter((b) => {
+                          if (broadcastsFilterCategory !== "all" && b.category !== broadcastsFilterCategory) return false;
+                          if (broadcastsFilterStatus !== "all" && b.status !== broadcastsFilterStatus) return false;
+                          if (broadcastsSearch) {
+                              const query = broadcastsSearch.toLowerCase();
+                              const matchesDetails = b.requirementDetails?.toLowerCase().includes(query);
+                              const matchesCity = b.city?.toLowerCase().includes(query);
+                              const matchesBuyerName = b.buyerName?.toLowerCase().includes(query);
+                              if (!matchesDetails && !matchesCity && !matchesBuyerName) return false;
+                          }
+                          return true;
+                      });
+
+                      if (isLoadingBroadcasts) {
+                          return (
+                              <div className="text-center py-5 text-muted">
+                                <div className="spinner-border spinner-border-sm me-2" role="status"></div>
+                                Loading broadcastings...
+                              </div>
+                          );
+                      }
+
+                      if (filteredBroadcasts.length === 0) {
+                          return (
+                              <div className="card border shadow-sm rounded-4 p-5 text-center bg-white">
+                                <i className="fa-solid fa-bullhorn fa-3x text-muted mb-3"></i>
+                                <h5 className="fw-bold">No broadcastings found</h5>
+                                <p className="text-muted mb-0">
+                                  {role === "buyer"
+                                    ? "There are no requirements matching your criteria."
+                                    : "No buyer requirements match your criteria."}
+                                </p>
+                              </div>
+                          );
+                      }
+
+                      return (
+                      <div className="row g-3">
+                        {filteredBroadcasts.map((b) => (
+                          <div className="col-md-6" key={b.id}>
+                            <div className="card border shadow-sm rounded-4 h-100 bg-white">
                             <div className="card-body p-4">
                               <div className="d-flex justify-content-between align-items-start mb-2">
                                 <span className="badge text-bg-success text-capitalize">{b.category}</span>
@@ -2201,8 +2273,9 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                           </div>
                         </div>
                       ))}
-                    </div>
-                  )}
+                      </div>
+                      );
+                  })()}
                 </>
               ) : activeTab === "payments" ? (
                 <>
@@ -2218,6 +2291,31 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
 
                   {paymentsMessage && <div className="alert alert-info py-2 rounded-3">{paymentsMessage}</div>}
 
+                  <div className="row g-3 mb-4">
+                    <div className="col-md-6">
+                      <div className="input-group">
+                        <span className="input-group-text bg-white border-end-0"><i className="fa-solid fa-search text-muted"></i></span>
+                        <input type="text" className="form-control border-start-0 ps-0" placeholder="Search by plan name, customer..." value={paymentsSearch} onChange={(e) => setPaymentsSearch(e.target.value)} />
+                      </div>
+                    </div>
+                    <div className="col-md-3">
+                      <select className="form-select" value={paymentsFilterStatus} onChange={(e) => setPaymentsFilterStatus(e.target.value)}>
+                        <option value="all">All Statuses</option>
+                        <option value="completed">Completed</option>
+                        <option value="pending">Pending</option>
+                        <option value="failed">Failed</option>
+                      </select>
+                    </div>
+                    <div className="col-md-3">
+                      <select className="form-select" value={paymentsFilterCurrency} onChange={(e) => setPaymentsFilterCurrency(e.target.value)}>
+                        <option value="all">All Currencies</option>
+                        {Array.from(new Set(payments.map(p => p.currency))).filter(Boolean).map(c => (
+                            <option key={c} value={c}>{c.toUpperCase()}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
                   <section className="card border shadow-sm rounded-4 p-0 overflow-hidden bg-white">
                     <div className="table-responsive">
                       <table className="table align-middle mb-0">
@@ -2231,23 +2329,44 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                           </tr>
                         </thead>
                         <tbody>
-                          {isLoadingPayments ? (
-                            <tr>
-                              <td colSpan={4} className="text-center py-5 text-muted">
-                                <div className="spinner-border spinner-border-sm me-2" role="status"></div>
-                                Loading payments...
-                              </td>
-                            </tr>
-                          ) : payments.length === 0 ? (
-                            <tr>
-                              <td colSpan={4} className="text-center py-5">
-                                <i className="fa-solid fa-receipt fa-3x text-muted mb-3 opacity-50"></i>
-                                <h5>No active subscriptions</h5>
-                                <p className="text-muted mb-0">You have no recorded payments.</p>
-                              </td>
-                            </tr>
-                          ) : (
-                            payments.map((payment) => (
+                          {(() => {
+                            const filteredPayments = payments.filter((payment) => {
+                                if (paymentsFilterStatus !== "all" && payment.status !== paymentsFilterStatus) return false;
+                                if (paymentsFilterCurrency !== "all" && payment.currency !== paymentsFilterCurrency) return false;
+                                if (paymentsSearch) {
+                                    const query = paymentsSearch.toLowerCase();
+                                    const matchesName = payment.userName?.toLowerCase().includes(query);
+                                    const matchesEmail = payment.userEmail?.toLowerCase().includes(query);
+                                    const matchesPlan = payment.planId?.name.toLowerCase().includes(query);
+                                    if (!matchesName && !matchesEmail && !matchesPlan) return false;
+                                }
+                                return true;
+                            });
+
+                            if (isLoadingPayments) {
+                                return (
+                                  <tr>
+                                    <td colSpan={5} className="text-center py-5 text-muted">
+                                      <div className="spinner-border spinner-border-sm me-2" role="status"></div>
+                                      Loading payments...
+                                    </td>
+                                  </tr>
+                                );
+                            }
+
+                            if (filteredPayments.length === 0) {
+                                return (
+                                  <tr>
+                                    <td colSpan={5} className="text-center py-5">
+                                      <i className="fa-solid fa-receipt fa-3x text-muted mb-3 opacity-50"></i>
+                                      <h5>No payments found</h5>
+                                      <p className="text-muted mb-0">No recorded payments match your criteria.</p>
+                                    </td>
+                                  </tr>
+                                );
+                            }
+
+                            return filteredPayments.map((payment) => (
                               <tr key={payment._id}>
                                 <td className="py-3 px-4">
                                   <span className="fw-medium text-dark">{new Date(payment.paymentDate).toLocaleDateString()}</span>
@@ -2281,8 +2400,8 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                                   )}
                                 </td>
                               </tr>
-                            ))
-                          )}
+                            ));
+                          })()}
                         </tbody>
                       </table>
                     </div>

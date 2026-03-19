@@ -23,6 +23,10 @@ export default function PaymentsHistoryPage() {
     const [payments, setPayments] = useState<PaymentTransaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
+    const [searchQuery, setSearchQuery] = useState("");
+    const [filterStatus, setFilterStatus] = useState("all");
+    const [filterCurrency, setFilterCurrency] = useState("all");
+
     useEffect(() => {
         fetchPayments();
     }, []);
@@ -70,19 +74,63 @@ export default function PaymentsHistoryPage() {
                     </div>
 
                     <div className="card border-0 shadow-sm rounded-4 overflow-hidden">
+                        <div className="card-header bg-white border-bottom p-3">
+                            <div className="row g-3">
+                                <div className="col-md-6">
+                                    <div className="input-group">
+                                        <span className="input-group-text bg-light border-end-0"><i className="fa-solid fa-search text-muted"></i></span>
+                                        <input type="text" className="form-control border-start-0 ps-0" placeholder="Search by customer name or email..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                                    </div>
+                                </div>
+                                <div className="col-md-3">
+                                    <select className="form-select" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+                                        <option value="all">All Statuses</option>
+                                        <option value="completed">Completed</option>
+                                        <option value="pending">Pending</option>
+                                        <option value="failed">Failed</option>
+                                    </select>
+                                </div>
+                                <div className="col-md-3">
+                                    <select className="form-select" value={filterCurrency} onChange={(e) => setFilterCurrency(e.target.value)}>
+                                        <option value="all">All Currencies</option>
+                                        {Array.from(new Set(payments.map(p => p.currency))).filter(Boolean).map(c => (
+                                            <option key={c} value={c}>{c.toUpperCase()}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
                         <div className="card-body p-0">
                             {isLoading ? (
                                 <div className="text-center py-5">
                                     <div className="spinner-border text-success" role="status"></div>
                                     <p className="text-muted mt-2">Loading payments...</p>
                                 </div>
-                            ) : payments.length === 0 ? (
-                                <div className="text-center py-5 bg-light">
-                                    <i className="fa-brands fa-stripe fa-3x text-muted mb-3 opacity-50"></i>
-                                    <h5>No payments found</h5>
-                                    <p className="text-muted">Once a user subscribes, their payment record will appear here.</p>
-                                </div>
-                            ) : (
+                            ) : (() => {
+                                const filteredPayments = payments.filter(payment => {
+                                    if (filterStatus !== "all" && payment.status !== filterStatus) return false;
+                                    if (filterCurrency !== "all" && payment.currency !== filterCurrency) return false;
+
+                                    if (searchQuery) {
+                                        const query = searchQuery.toLowerCase();
+                                        const matchesName = payment.userName?.toLowerCase().includes(query);
+                                        const matchesEmail = payment.userEmail?.toLowerCase().includes(query);
+                                        if (!matchesName && !matchesEmail) return false;
+                                    }
+                                    return true;
+                                });
+
+                                if (filteredPayments.length === 0) {
+                                    return (
+                                        <div className="text-center py-5 bg-light">
+                                            <i className="fa-brands fa-stripe fa-3x text-muted mb-3 opacity-50"></i>
+                                            <h5>No payments found</h5>
+                                            <p className="text-muted">Once a user subscribes, their payment record will appear here.</p>
+                                        </div>
+                                    );
+                                }
+
+                                return (
                                 <div className="table-responsive">
                                     <table className="table table-hover align-middle mb-0">
                                         <thead className="table-light">
@@ -96,7 +144,7 @@ export default function PaymentsHistoryPage() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {payments.map((payment) => (
+                                            {filteredPayments.map((payment) => (
                                                 <tr key={payment._id}>
                                                     <td className="py-3 px-4">
                                                         <span className="fw-medium text-dark">{new Date(payment.paymentDate).toLocaleDateString()}</span>
@@ -131,7 +179,8 @@ export default function PaymentsHistoryPage() {
                                         </tbody>
                                     </table>
                                 </div>
-                            )}
+                                );
+                            })()}
                         </div>
                         <div className="card-footer bg-white border-top py-3 px-4 text-center">
                             <p className="text-muted small mb-0"><i className="fa-solid fa-lock text-success me-1"></i> Payments securely processed and tracked via Stripe Webhooks.</p>

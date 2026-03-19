@@ -58,6 +58,10 @@ function UsersContent({ sessionUser }: { sessionUser: SessionUser }) {
   const [isUpdatingVerification, setIsUpdatingVerification] = useState(false);
   const [selectedPreviewImage, setSelectedPreviewImage] = useState<string | null>(null);
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterRole, setFilterRole] = useState("all");
+  const [filterVerificationStatus, setFilterVerificationStatus] = useState("all");
+
   const [createForm, setCreateForm] = useState({
     fullName: "",
     email: "",
@@ -294,6 +298,23 @@ function UsersContent({ sessionUser }: { sessionUser: SessionUser }) {
     { label: "Buyers", value: totals.buyers, icon: "fa-cart-shopping", bg: "linear-gradient(135deg, #eef2f6 0%, #e4e9ef 100%)" },
   ];
 
+  const filteredUsers = useMemo(() => {
+    return users.filter((user) => {
+      if (filterRole !== "all" && user.role !== filterRole) return false;
+      if (filterVerificationStatus !== "all" && user.role === "seller" && user.verificationStatus !== filterVerificationStatus) return false;
+
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesName = user.fullName?.toLowerCase().includes(query);
+        const matchesEmail = user.email?.toLowerCase().includes(query);
+        const matchesPhone = user.phoneNumber?.toLowerCase().includes(query);
+        if (!matchesName && !matchesEmail && !matchesPhone) return false;
+      }
+
+      return true;
+    });
+  }, [users, searchQuery, filterRole, filterVerificationStatus]);
+
   return (
     <>
       <section className="card border shadow-sm rounded-4 p-4 mb-4 bg-white">
@@ -466,6 +487,34 @@ function UsersContent({ sessionUser }: { sessionUser: SessionUser }) {
 
       {message && <div className="alert alert-info py-2 rounded-3">{message}</div>}
 
+      <section className="card border shadow-sm rounded-4 p-4 mb-4 bg-white">
+        <div className="row g-3">
+          <div className="col-md-6">
+            <div className="input-group">
+              <span className="input-group-text bg-light border-end-0"><i className="fa-solid fa-search text-muted"></i></span>
+              <input type="text" className="form-control border-start-0 ps-0" placeholder="Search by name, email, or phone..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+            </div>
+          </div>
+          <div className="col-md-3">
+            <select className="form-select" value={filterRole} onChange={(e) => setFilterRole(e.target.value)}>
+              <option value="all">All Roles</option>
+              <option value="admin">Admin</option>
+              <option value="seller">Seller</option>
+              <option value="buyer">Buyer</option>
+            </select>
+          </div>
+          <div className="col-md-3">
+            <select className="form-select" value={filterVerificationStatus} onChange={(e) => setFilterVerificationStatus(e.target.value)} disabled={filterRole !== "all" && filterRole !== "seller"}>
+              <option value="all">All Verification Statuses</option>
+              <option value="verified">Verified</option>
+              <option value="pending">Pending</option>
+              <option value="unsubmitted">Unsubmitted</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
       <section className="card border shadow-sm rounded-4 p-0 overflow-hidden bg-white">
         <div className="table-responsive">
           <table className="table align-middle mb-0">
@@ -488,14 +537,14 @@ function UsersContent({ sessionUser }: { sessionUser: SessionUser }) {
                     <i className="fa-solid fa-spinner fa-spin me-2"></i>Loading users...
                   </td>
                 </tr>
-              ) : users.length === 0 ? (
+              ) : filteredUsers.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="text-center py-4 text-muted">
                     <i className="fa-regular fa-folder-open me-2"></i>No users found.
                   </td>
                 </tr>
               ) : (
-                users.map((user) => (
+                filteredUsers.map((user) => (
                   <tr key={user.id}>
                     <td className="fw-semibold">{user.fullName}</td>
                     <td>{user.email}</td>

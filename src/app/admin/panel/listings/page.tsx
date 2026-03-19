@@ -130,6 +130,9 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
 
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterCategory, setFilterCategory] = useState("all");
+
   const categoryOptions = useMemo(() => categories.map((category) => category.name), [categories]);
 
   const findHierarchy = useCallback((categoryName: string) => {
@@ -265,6 +268,14 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
     const parsedQuantity = parseQuantity(listing.quantity);
     const hierarchy = findHierarchy(listing.category);
 
+    // Merge category's current custom fields with listing's saved extraInfo
+    const cat = categories.find(c => c.name === hierarchy.category);
+    const savedInfo = listing.extraInfo || [];
+    const mergedExtraInfo = (cat?.customFields || []).map(f => {
+      const existing = savedInfo.find(e => e.label.toLowerCase() === f.label.toLowerCase());
+      return { label: f.label, value: existing?.value || "" };
+    });
+
     setEditingListingId(listing.id);
     setEditForm({
       title: listing.title,
@@ -276,7 +287,7 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
       quantityUnit: parsedQuantity.quantityUnit,
       pricePerMaund: String(listing.pricePerMaund),
       description: listing.description,
-      extraInfo: listing.extraInfo || [],
+      extraInfo: mergedExtraInfo,
     });
     setEditImages(listing.images || []);
   };
@@ -316,6 +327,7 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
       setListingForm((prev) => ({ ...initialListingForm, category: prev.category, subcategory: prev.subcategory, childCategory: prev.childCategory, extraInfo: [] }));
       setListingImages([]);
       setMessage("Listing created successfully.");
+      setShowCreateListingModal(false);
       await loadListings();
     } catch {
       setMessage("Network error while creating listing.");
@@ -390,6 +402,22 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
     });
   };
 
+  const filteredListings = useMemo(() => {
+    return listings.filter((listing) => {
+      if (filterCategory !== "all" && listing.category !== filterCategory) return false;
+
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesTitle = listing.title?.toLowerCase().includes(query);
+        const matchesCity = listing.city?.toLowerCase().includes(query);
+        const matchesCategory = listing.category?.toLowerCase().includes(query);
+        if (!matchesTitle && !matchesCity && !matchesCategory) return false;
+      }
+
+      return true;
+    });
+  }, [listings, searchQuery, filterCategory]);
+
   return (
     <>
       {confirmModal.isOpen && (
@@ -421,8 +449,9 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
           </div>
         </div>
       )}
+
       <section className="card border shadow-sm rounded-4 p-4 mb-4 bg-white">
-        <div className="d-flex justify-content-between align-items-start flex-wrap gap-3">
+        <div className="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
           <div className="d-flex align-items-center gap-3">
             <div className="section-icon-bg">
               <i className="fa-solid fa-list-check"></i>
@@ -439,6 +468,23 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
             <button className="btn btn-outline-success" onClick={() => void Promise.all([loadCategories(), loadListings()])}>
               <i className="fa-solid fa-rotate-right me-2"></i>Refresh
             </button>
+          </div>
+        </div>
+
+        <div className="row g-3">
+          <div className="col-md-8">
+            <div className="input-group">
+              <span className="input-group-text bg-light border-end-0"><i className="fa-solid fa-search text-muted"></i></span>
+              <input type="text" className="form-control border-start-0 ps-0" placeholder="Search by title, city, or category..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+            </div>
+          </div>
+          <div className="col-md-4">
+            <select className="form-select" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
+              <option value="all">All Categories</option>
+              {categoryOptions.map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
           </div>
         </div>
       </section>
@@ -653,21 +699,8 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
               <div className="col-md-4"><label className="form-label">Price / Maund</label><input className="form-control" type="number" required value={editForm.pricePerMaund} onChange={(e) => setEditForm((p) => ({ ...p, pricePerMaund: e.target.value }))} /></div>
               <div className="col-12"><label className="form-label">Description</label><textarea className="form-control" rows={3} value={editForm.description} onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))}></textarea></div>
 
-              {editForm.extraInfo?.map((info, idx) => (
-                <div key={idx} className="col-12">
-                  <div className="d-flex gap-2">
-                    <input className="form-control" placeholder="Title (e.g. Color)" value={info.label} onChange={(e) => updateExtraInfo(idx, "label", e.target.value, true)} />
-                    <input className="form-control" placeholder="Information" value={info.value} onChange={(e) => updateExtraInfo(idx, "value", e.target.value, true)} />
-                    <button type="button" className="btn btn-outline-danger" onClick={() => removeExtraInfo(idx, true)}>×</button>
-                  </div>
-                </div>
-              ))}
 
-              <div className="col-12">
-                <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => addExtraInfo(true)}>
-                  <i className="fa-solid fa-plus me-1"></i>Add Extra Info
-                </button>
-              </div>
+
 
               <div className="col-12">
                 <label className="form-label">Update Images</label>
@@ -694,11 +727,11 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
       <section className="card border shadow-sm rounded-4 p-0 overflow-hidden bg-white">
         {isLoadingListings ? (
           <div className="p-4 text-center text-muted"><i className="fa-solid fa-spinner fa-spin me-2"></i>Loading listings...</div>
-        ) : listings.length === 0 ? (
+        ) : filteredListings.length === 0 ? (
           <div className="p-4 text-center text-muted"><i className="fa-regular fa-folder-open me-2"></i>No listings found.</div>
         ) : (
           <div className="listing-list">
-            {listings.map((listing) => (
+            {filteredListings.map((listing) => (
               <div role="button" tabIndex={0} key={listing.id} className="listing-row" onClick={() => setSelectedListing(listing)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedListing(listing); } }}>
                 <div className="listing-row-left">
                   {listing.images?.[0] ? (
