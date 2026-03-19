@@ -3381,10 +3381,12 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
             left: -280px;
             width: 280px;
             height: 100vh;
+            height: 100dvh;
             z-index: 1050;
             border-radius: 0 !important;
             transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             overflow-y: auto;
+            padding-bottom: calc(1rem + env(safe-area-inset-bottom, 20px));
           }
 
           .panel-sidebar.show {

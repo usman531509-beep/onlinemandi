@@ -441,6 +441,7 @@ body {
     background: #ffffff !important;
     /* Solid background for readability */
     box-shadow: 10px 0 30px rgba(0, 0, 0, 0.1);
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom, 20px));
   }
 
   .admin-shell .sidebar-overlay {
