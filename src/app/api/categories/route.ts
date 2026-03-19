@@ -18,6 +18,14 @@ type CategoryResponse = {
       name: string;
     }[];
   }[];
+  customFields: {
+    id: string;
+    label: string;
+    fieldType: string;
+    required: boolean;
+    options: string[];
+    placeholder: string;
+  }[];
 };
 
 function mapCategory(category: {
@@ -29,6 +37,14 @@ function mapCategory(category: {
     _id?: mongoose.Types.ObjectId;
     name: string;
     children?: { _id?: mongoose.Types.ObjectId; name: string }[];
+  }[];
+  customFields?: {
+    _id?: mongoose.Types.ObjectId;
+    label: string;
+    fieldType?: string;
+    required?: boolean;
+    options?: string[];
+    placeholder?: string;
   }[];
 }): CategoryResponse {
   return {
@@ -43,6 +59,14 @@ function mapCategory(category: {
         id: String(child._id),
         name: child.name,
       })),
+    })),
+    customFields: (category.customFields || []).map((field) => ({
+      id: String(field._id),
+      label: field.label,
+      fieldType: field.fieldType || "text",
+      required: field.required || false,
+      options: field.options || [],
+      placeholder: field.placeholder || "",
     })),
   };
 }
@@ -116,6 +140,13 @@ export async function POST(request: Request) {
         name: string;
         children?: { name: string }[];
       }[];
+      customFields?: {
+        label: string;
+        fieldType?: string;
+        required?: boolean;
+        options?: string[];
+        placeholder?: string;
+      }[];
     };
 
     const userId = body.userId;
@@ -123,6 +154,7 @@ export async function POST(request: Request) {
     const name = body.name?.trim();
     const description = body.description?.trim();
     const subcategories = body.subcategories;
+    const customFields = body.customFields;
 
     if (!userId || !role || !name) {
       return NextResponse.json({ ok: false, message: "userId, role and name are required." }, { status: 400 });
@@ -161,11 +193,24 @@ export async function POST(request: Request) {
         }))
       : [];
 
+    const safeCustomFields = Array.isArray(customFields)
+      ? customFields
+          .filter((f) => f.label && f.label.trim().length > 0)
+          .map((f) => ({
+            label: f.label.trim(),
+            fieldType: f.fieldType || "text",
+            required: f.required || false,
+            options: Array.isArray(f.options) ? f.options.filter((o) => o.trim().length > 0) : [],
+            placeholder: f.placeholder?.trim() || "",
+          }))
+      : [];
+
     const created = await Category.create({
       name,
       description,
       createdBy: user._id,
       subcategories: safeSubcategories,
+      customFields: safeCustomFields,
     });
 
     return NextResponse.json(

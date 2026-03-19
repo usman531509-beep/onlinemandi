@@ -15,6 +15,14 @@ type CategoryBody = {
     name: string;
     children?: { id?: string; name: string }[];
   }[];
+  customFields?: {
+    id?: string;
+    label: string;
+    fieldType?: string;
+    required?: boolean;
+    options?: string[];
+    placeholder?: string;
+  }[];
 };
 
 async function validateAdmin(userId?: string, role?: string) {
@@ -85,10 +93,13 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
       return NextResponse.json({ ok: false, message: "Category already exists." }, { status: 409 });
     }
 
-    category.name = name;
-    category.description = description;
+    const updatePayload: any = {
+      name,
+      description,
+    };
+
     if (Array.isArray(subcategories)) {
-      category.subcategories = subcategories
+      updatePayload.subcategories = subcategories
         .filter((subcategory) => subcategory.name && subcategory.name.trim().length > 0)
         .map((subcategory) => {
           const payload: {
@@ -117,7 +128,36 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
           return payload;
         });
     }
-    await category.save();
+
+    if (Array.isArray(body.customFields)) {
+      updatePayload.customFields = body.customFields
+        .filter((f) => f.label && f.label.trim().length > 0)
+        .map((f) => {
+          const payload: {
+            _id?: mongoose.Types.ObjectId;
+            label: string;
+            fieldType: "text" | "number" | "select";
+            required: boolean;
+            options: string[];
+            placeholder: string;
+          } = {
+            label: f.label.trim(),
+            fieldType: (f.fieldType || "text") as "text" | "number" | "select",
+            required: f.required || false,
+            options: Array.isArray(f.options) ? f.options.filter((o) => o.trim().length > 0) : [],
+            placeholder: f.placeholder?.trim() || "",
+          };
+          if (f.id && mongoose.Types.ObjectId.isValid(f.id)) {
+            payload._id = new mongoose.Types.ObjectId(f.id);
+          }
+          return payload;
+        });
+    }
+
+    await Category.updateOne(
+      { _id: id },
+      { $set: updatePayload }
+    );
 
     return NextResponse.json({ ok: true, message: "Category updated successfully." }, { status: 200 });
   } catch (error) {

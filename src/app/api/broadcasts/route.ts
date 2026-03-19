@@ -46,22 +46,24 @@ export async function POST(request: NextRequest) {
         }
 
         // --- Subscription-based broadcast limit enforcement ---
-        const FREE_BROADCAST_LIMIT = 0;
-        const currentBroadcastCount = await Broadcast.countDocuments({ buyerId: user._id });
+        if (user.role !== "admin") {
+            const FREE_BROADCAST_LIMIT = 0;
+            const currentBroadcastCount = await Broadcast.countDocuments({ buyerId: user._id });
 
-        const activeSub = await Subscription.findOne({
-            userId: user._id,
-            status: "active",
-            $or: [{ endDate: null }, { endDate: { $gt: new Date() } }],
-        }).populate("planId");
+            const activeSub = await Subscription.findOne({
+                userId: user._id,
+                status: "active",
+                $or: [{ endDate: null }, { endDate: { $gt: new Date() } }],
+            }).populate("planId");
 
-        const maxBroadcasts = activeSub?.planId?.broadcastLimit ?? FREE_BROADCAST_LIMIT;
+            const maxBroadcasts = activeSub?.planId?.broadcastLimit ?? FREE_BROADCAST_LIMIT;
 
-        if (currentBroadcastCount >= maxBroadcasts) {
-            const planMsg = activeSub
-                ? `Your "${activeSub.planId.name}" plan allows a maximum of ${maxBroadcasts} broadcasts. Please upgrade your plan.`
-                : `You need an active subscription to post broadcast requests. Please subscribe to a plan first.`;
-            return NextResponse.json({ ok: false, message: planMsg }, { status: 403 });
+            if (currentBroadcastCount >= maxBroadcasts) {
+                const planMsg = activeSub
+                    ? `Your "${activeSub.planId.name}" plan allows a maximum of ${maxBroadcasts} broadcasts. Please upgrade your plan.`
+                    : `You need an active subscription to post broadcast requests. Please subscribe to a plan first.`;
+                return NextResponse.json({ ok: false, message: planMsg }, { status: 403 });
+            }
         }
         // --- End limit enforcement ---
 

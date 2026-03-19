@@ -12,9 +12,6 @@ type PopulatedListing = {
   _id: mongoose.Types.ObjectId;
   title: string;
   category: string;
-  grade?: string;
-  moisture?: string;
-  delivery?: string;
   city: string;
   quantity: string;
   pricePerMaund: number;
@@ -43,9 +40,6 @@ function mapListing(listing: PopulatedListing) {
     id: String(listing._id),
     title: listing.title,
     category: listing.category,
-    grade: listing.grade || "Unspecified",
-    moisture: listing.moisture || "Not specified",
-    delivery: listing.delivery || "Negotiable",
     city: listing.city,
     quantity: listing.quantity,
     pricePerMaund: listing.pricePerMaund,
@@ -142,9 +136,6 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
       role?: ListingRole;
       title?: string;
       category?: string;
-      grade?: string;
-      moisture?: string;
-      delivery?: string;
       city?: string;
       quantity?: string;
       pricePerMaund?: number;
@@ -170,9 +161,6 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
 
     const title = body.title?.trim();
     const category = body.category?.trim();
-    const grade = body.grade?.trim() || "Unspecified";
-    const moisture = body.moisture?.trim() || "Not specified";
-    const delivery = body.delivery?.trim() || "Negotiable";
     const city = body.city?.trim();
     const quantity = body.quantity?.trim();
     const description = body.description?.trim();
@@ -219,9 +207,6 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
         $set: {
           title,
           category,
-          grade,
-          moisture,
-          delivery,
           city,
           quantity,
           pricePerMaund,

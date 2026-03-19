@@ -35,7 +35,7 @@ body {
 /* ─── Admin Shell Modern Styles ─── */
 
 .admin-shell.panel-page {
-  min-height: 100vh;
+  min-height: 100dvh;
   background: linear-gradient(145deg, #f0f7f3 0%, #f8faf9 40%, #fdfefe 70%, #faf6e8 100%);
 }
 
@@ -68,7 +68,7 @@ body {
 .admin-shell .panel-sidebar {
   top: 1rem;
   width: 100%;
-  min-height: calc(100vh - 2rem);
+  min-height: calc(100dvh - 2rem);
   display: flex;
   flex-direction: column;
   background: var(--glass-bg);
@@ -409,7 +409,7 @@ body {
     overflow-y: auto;
     /* Enable vertical scrolling */
     -webkit-overflow-scrolling: touch;
-    height: 100vh;
+    height: 100dvh;
   }
 
   /* Increase width specifically for mobile screens to 75% to prevent text clipping */

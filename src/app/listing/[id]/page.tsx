@@ -333,38 +333,39 @@ export default function ListingDetailPage() {
                                             <div className="bg-light rounded p-3 d-flex align-items-start gap-3 h-100 border border-light">
                                                 <i className="fa-solid fa-box text-dark fs-4 mt-1"></i>
                                                 <div>
-                                                    <div className="fw-bolder fs-6 text-dark" style={{ letterSpacing: "-0.2px" }}>QUANTITY</div>
+                                                    <div className="fw-bolder fs-6 text-dark text-uppercase" style={{ letterSpacing: "-0.2px" }}>QUANTITY</div>
                                                     <div className="text-muted small">{listing.quantity}</div>
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="col-6">
-                                            <div className="bg-light rounded p-3 d-flex align-items-start gap-3 h-100 border border-light">
-                                                <i className="fa-solid fa-ranking-star text-dark fs-4 mt-1"></i>
-                                                <div>
-                                                    <div className="fw-bolder fs-6 text-dark" style={{ letterSpacing: "-0.2px" }}>GRADE</div>
-                                                    <div className="text-muted small">{listing.grade || "Unspecified"}</div>
+                                        
+                                        {listing.extraInfo && listing.extraInfo.map((info, idx) => {
+                                            const getIconForLabel = (label: string) => {
+                                                const lowerLabel = label.toLowerCase();
+                                                if (lowerLabel.includes('grade')) return 'fa-ranking-star';
+                                                if (lowerLabel.includes('moist')) return 'fa-droplet';
+                                                if (lowerLabel.includes('deliv') || lowerLabel.includes('transport')) return 'fa-truck-fast';
+                                                if (lowerLabel.includes('variety') || lowerLabel.includes('type')) return 'fa-seedling';
+                                                if (lowerLabel.includes('size')) return 'fa-compress';
+                                                if (lowerLabel.includes('weight')) return 'fa-weight-hanging';
+                                                if (lowerLabel.includes('packag')) return 'fa-box-open';
+                                                if (lowerLabel.includes('color')) return 'fa-palette';
+                                                return 'fa-tag';
+                                            };
+                                            const iconClass = getIconForLabel(info.label);
+                                            
+                                            return (
+                                                <div className="col-6" key={idx}>
+                                                    <div className="bg-light rounded p-3 d-flex align-items-start gap-3 h-100 border border-light">
+                                                        <i className={`fa-solid ${iconClass} text-dark fs-4 mt-1`}></i>
+                                                        <div>
+                                                            <div className="fw-bolder fs-6 text-dark text-uppercase" style={{ letterSpacing: "-0.2px" }}>{info.label}</div>
+                                                            <div className="text-muted small">{info.value || "Not specified"}</div>
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </div>
-                                        <div className="col-6">
-                                            <div className="bg-light rounded p-3 d-flex align-items-start gap-3 h-100 border border-light">
-                                                <i className="fa-solid fa-droplet text-dark fs-4 mt-1"></i>
-                                                <div>
-                                                    <div className="fw-bolder fs-6 text-dark" style={{ letterSpacing: "-0.2px" }}>MOISTURE</div>
-                                                    <div className="text-muted small">{listing.moisture || "Not specified"}</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="col-6">
-                                            <div className="bg-light rounded p-3 d-flex align-items-start gap-3 h-100 border border-light">
-                                                <i className="fa-solid fa-truck-fast text-dark fs-4 mt-1"></i>
-                                                <div>
-                                                    <div className="fw-bolder fs-6 text-dark" style={{ letterSpacing: "-0.2px" }}>DELIVERY</div>
-                                                    <div className="text-muted small">{listing.delivery || "Negotiable"}</div>
-                                                </div>
-                                            </div>
-                                        </div>
+                                            );
+                                        })}
                                     </div>
 
                                     <div className="col-12 mt-2">
@@ -434,21 +435,7 @@ export default function ListingDetailPage() {
                                             {listing.description || "No description provided."}
                                         </p>
 
-                                        {listing.extraInfo && listing.extraInfo.length > 0 && (
-                                            <div className="mt-4 pt-3 border-top">
-                                                <h6 className="fw-bold mb-3 text-uppercase" style={{ letterSpacing: "0.5px", fontSize: "0.9rem" }}>Additional Information</h6>
-                                                <div className="row g-3">
-                                                    {listing.extraInfo.map((info, idx) => (
-                                                        <div key={idx} className="col-sm-6">
-                                                            <div className="bg-light rounded p-2 px-3 border border-light h-100">
-                                                                <small className="text-muted text-uppercase d-block fw-bold" style={{ fontSize: "0.7rem", letterSpacing: "0.5px" }}>{info.label}</small>
-                                                                <div className="fw-medium text-dark">{info.value}</div>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
+
                                     </div>
                                 </div>
                             </div>

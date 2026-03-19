@@ -19,9 +19,6 @@ type Listing = {
   id: string;
   title: string;
   category: string;
-  grade?: string;
-  moisture?: string;
-  delivery?: string;
   city: string;
   quantity: string;
   pricePerMaund: number;
@@ -48,6 +45,14 @@ type Category = {
       id: string;
       name: string;
     }[];
+  }[];
+  customFields?: {
+    id: string;
+    label: string;
+    fieldType: string;
+    required: boolean;
+    options: string[];
+    placeholder: string;
   }[];
   createdAt: string;
 };
@@ -118,9 +123,6 @@ const initialListingForm = {
   category: "",
   subcategory: "",
   childCategory: "",
-  grade: "",
-  moisture: "",
-  delivery: "",
   city: "",
   quantityValue: "",
   quantityUnit: "ton",
@@ -742,9 +744,6 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
           role: sessionUser.role,
           title: listingForm.title,
           category: listingForm.childCategory || listingForm.subcategory || listingForm.category,
-          grade: listingForm.grade,
-          moisture: listingForm.moisture,
-          delivery: listingForm.delivery,
           city: listingForm.city,
           quantity: formatQuantity(listingForm.quantityValue, listingForm.quantityUnit),
           pricePerMaund: Number(listingForm.pricePerMaund),
@@ -914,9 +913,6 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
       category: hierarchy.category,
       subcategory: hierarchy.sub,
       childCategory: hierarchy.child,
-      grade: listing.grade || "Unspecified",
-      moisture: listing.moisture || "Not specified",
-      delivery: listing.delivery || "Negotiable",
       city: listing.city,
       quantityValue: parsedQuantity.quantityValue,
       quantityUnit: parsedQuantity.quantityUnit,
@@ -950,9 +946,6 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
           role: sessionUser.role,
           title: editForm.title,
           category: editForm.childCategory || editForm.subcategory || editForm.category,
-          grade: editForm.grade,
-          moisture: editForm.moisture,
-          delivery: editForm.delivery,
           city: editForm.city,
           quantity: formatQuantity(editForm.quantityValue, editForm.quantityUnit),
           pricePerMaund: Number(editForm.pricePerMaund),
@@ -1355,7 +1348,12 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                                 <select
                                   className="form-select"
                                   value={listingForm.category}
-                                  onChange={(event) => setListingForm((prev) => ({ ...prev, category: event.target.value, subcategory: "", childCategory: "" }))}
+                                  onChange={(event) => {
+                                    const catName = event.target.value;
+                                    const cat = categories.find(c => c.name === catName);
+                                    const extraInfo = (cat?.customFields || []).map(f => ({ label: f.label, value: "" }));
+                                    setListingForm((prev) => ({ ...prev, category: catName, subcategory: "", childCategory: "", extraInfo }));
+                                  }}
                                   disabled={!categoryOptions.length}
                                 >
                                   <option value="">Select Category</option>
@@ -1386,33 +1384,22 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                                   {getChildCategoryOptions(listingForm.category, listingForm.subcategory).map((option) => <option key={option}>{option}</option>)}
                                 </select>
                               </div>
-                              <div className="col-md-4">
-                                <label className="form-label">Grade</label>
-                                <input
-                                  className="form-control"
-                                  value={listingForm.grade}
-                                  onChange={(event) => setListingForm((prev) => ({ ...prev, grade: event.target.value }))}
-                                  placeholder=""
-                                />
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label">Moisture</label>
-                                <input
-                                  className="form-control"
-                                  value={listingForm.moisture}
-                                  onChange={(event) => setListingForm((prev) => ({ ...prev, moisture: event.target.value }))}
-                                  placeholder=""
-                                />
-                              </div>
-                              <div className="col-md-4">
-                                <label className="form-label">Delivery</label>
-                                <input
-                                  className="form-control"
-                                  value={listingForm.delivery}
-                                  onChange={(event) => setListingForm((prev) => ({ ...prev, delivery: event.target.value }))}
-                                  placeholder=""
-                                />
-                              </div>
+                              {(() => {
+                                const cat = categories.find(c => c.name === listingForm.category);
+                                return (cat?.customFields || []).map((field, idx) => (
+                                  <div className="col-md-4" key={field.id}>
+                                    <label className="form-label">{field.label}{field.required && <span className="text-danger"> *</span>}</label>
+                                    {field.fieldType === "select" ? (
+                                      <select className="form-select" required={field.required} value={listingForm.extraInfo?.[idx]?.value || ""} onChange={(e) => updateExtraInfo(idx, "value", e.target.value, false)}>
+                                        <option value="">{field.placeholder || `Select ${field.label}`}</option>
+                                        {field.options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                                      </select>
+                                    ) : (
+                                      <input className="form-control" type={field.fieldType === "number" ? "number" : "text"} required={field.required} placeholder={field.placeholder || ""} value={listingForm.extraInfo?.[idx]?.value || ""} onChange={(e) => updateExtraInfo(idx, "value", e.target.value, false)} />
+                                    )}
+                                  </div>
+                                ));
+                              })()}
                               <div className="col-md-4">
                                 <label className="form-label">City</label>
                                 <input
@@ -1593,30 +1580,22 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                               {getChildCategoryOptions(editForm.category, editForm.subcategory).map((option) => <option key={option}>{option}</option>)}
                             </select>
                           </div>
-                          <div className="col-md-4">
-                            <label className="form-label">Grade</label>
-                            <input
-                              className="form-control"
-                              value={editForm.grade}
-                              onChange={(event) => setEditForm((prev) => ({ ...prev, grade: event.target.value }))}
-                            />
-                          </div>
-                          <div className="col-md-4">
-                            <label className="form-label">Moisture</label>
-                            <input
-                              className="form-control"
-                              value={editForm.moisture}
-                              onChange={(event) => setEditForm((prev) => ({ ...prev, moisture: event.target.value }))}
-                            />
-                          </div>
-                          <div className="col-md-4">
-                            <label className="form-label">Delivery</label>
-                            <input
-                              className="form-control"
-                              value={editForm.delivery}
-                              onChange={(event) => setEditForm((prev) => ({ ...prev, delivery: event.target.value }))}
-                            />
-                          </div>
+                          {(() => {
+                            const cat = categories.find(c => c.name === editForm.category);
+                            return (cat?.customFields || []).map((field, idx) => (
+                              <div className="col-md-4" key={field.id}>
+                                <label className="form-label">{field.label}{field.required && <span className="text-danger"> *</span>}</label>
+                                {field.fieldType === "select" ? (
+                                  <select className="form-select" required={field.required} value={editForm.extraInfo?.[idx]?.value || ""} onChange={(e) => updateExtraInfo(idx, "value", e.target.value, true)}>
+                                    <option value="">{field.placeholder || `Select ${field.label}`}</option>
+                                    {field.options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                                  </select>
+                                ) : (
+                                  <input className="form-control" type={field.fieldType === "number" ? "number" : "text"} required={field.required} placeholder={field.placeholder || ""} value={editForm.extraInfo?.[idx]?.value || ""} onChange={(e) => updateExtraInfo(idx, "value", e.target.value, true)} />
+                                )}
+                              </div>
+                            ));
+                          })()}
                           <div className="col-md-4">
                             <label className="form-label">City</label>
                             <input
@@ -2564,24 +2543,6 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                     <div className="detail-item">
                       <small>Quantity</small>
                       <p className="mb-0 fw-semibold">{selectedListing.quantity}</p>
-                    </div>
-                  </div>
-                  <div className="col-md-4">
-                    <div className="detail-item">
-                      <small>Grade</small>
-                      <p className="mb-0 fw-semibold">{selectedListing.grade || "Unspecified"}</p>
-                    </div>
-                  </div>
-                  <div className="col-md-4">
-                    <div className="detail-item">
-                      <small>Moisture</small>
-                      <p className="mb-0 fw-semibold">{selectedListing.moisture || "Not specified"}</p>
-                    </div>
-                  </div>
-                  <div className="col-md-4">
-                    <div className="detail-item">
-                      <small>Delivery</small>
-                      <p className="mb-0 fw-semibold">{selectedListing.delivery || "Negotiable"}</p>
                     </div>
                   </div>
                 </div>

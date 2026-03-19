@@ -12,12 +12,22 @@ type SessionUser = {
   role: "admin" | "buyer" | "seller";
 };
 
+type CustomField = {
+  id: string;
+  label: string;
+  fieldType: "text" | "number" | "select";
+  required: boolean;
+  options: string[];
+  placeholder: string;
+};
+
 type Category = {
   id: string;
   name: string;
   description: string;
   createdAt: string;
   subcategories: CategorySub[];
+  customFields: CustomField[];
 };
 
 type CategoryChild = {
@@ -37,6 +47,7 @@ type CategoryNode = {
   description: string;
   createdAt: string;
   subcategories: CategorySub[];
+  customFields: CustomField[];
 };
 
 function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
@@ -64,6 +75,8 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
   const [childName, setChildName] = useState("");
   const [createSubcategories, setCreateSubcategories] = useState<CategorySub[]>([]);
   const [editSubcategories, setEditSubcategories] = useState<CategorySub[]>([]);
+  const [createCustomFields, setCreateCustomFields] = useState<CustomField[]>([]);
+  const [editCustomFields, setEditCustomFields] = useState<CustomField[]>([]);
 
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
@@ -81,6 +94,7 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
     setCategoryName("");
     setCategoryDescription("");
     setCreateSubcategories([]);
+    setCreateCustomFields([]);
     setShowCreateCategoryModal(true);
   };
 
@@ -184,6 +198,15 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
                 .filter((child) => child.name.trim().length > 0)
                 .map((child) => ({ name: child.name.trim() })),
             })),
+          customFields: createCustomFields
+            .filter((f) => f.label.trim().length > 0)
+            .map((f) => ({
+              label: f.label.trim(),
+              fieldType: f.fieldType,
+              required: f.required,
+              options: f.options.filter((o) => o.trim().length > 0),
+              placeholder: f.placeholder,
+            })),
         }),
       });
 
@@ -200,6 +223,7 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
       setCategoryName("");
       setCategoryDescription("");
       setCreateSubcategories([]);
+      setCreateCustomFields([]);
       setCategoriesMessage("Category created successfully.");
       await loadCategories();
     } catch {
@@ -214,6 +238,7 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
     setEditCategoryName(category.name);
     setEditCategoryDescription(category.description || "");
     setEditSubcategories(Array.isArray(category.subcategories) ? category.subcategories : []);
+    setEditCustomFields(Array.isArray(category.customFields) ? category.customFields : []);
     setCategoriesMessage("");
   };
 
@@ -222,6 +247,7 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
     setEditCategoryName("");
     setEditCategoryDescription("");
     setEditSubcategories([]);
+    setEditCustomFields([]);
   };
 
   const onUpdateCategory = async (event: FormEvent<HTMLFormElement>) => {
@@ -248,6 +274,16 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
               children: subcategory.children
                 .filter((child) => child.name.trim().length > 0)
                 .map((child) => ({ id: child.id, name: child.name.trim() })),
+            })),
+          customFields: editCustomFields
+            .filter((f) => f.label.trim().length > 0)
+            .map((f) => ({
+              id: f.id,
+              label: f.label.trim(),
+              fieldType: f.fieldType,
+              required: f.required,
+              options: f.options.filter((o) => o.trim().length > 0),
+              placeholder: f.placeholder,
             })),
         }),
       });
@@ -306,35 +342,7 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
     });
   };
 
-  const onDeleteCategoryDirect = async (categoryId: string) => {
-    setIsDeletingCategoryId(categoryId);
-    setCategoriesMessage("");
 
-    try {
-      const response = await fetch(`/api/categories/${categoryId}`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: sessionUser.id,
-          role: sessionUser.role,
-        }),
-      });
-
-      const data = (await response.json()) as { ok: boolean; message?: string };
-      if (!response.ok || !data.ok) {
-        setCategoriesMessage(data.message || "Failed to delete category.");
-        return;
-      }
-
-      setCategoriesMessage("Category deleted successfully.");
-      if (editingCategoryId === categoryId) cancelEditCategory();
-      await loadCategories();
-    } catch {
-      setCategoriesMessage("Network error while deleting category.");
-    } finally {
-      setIsDeletingCategoryId(null);
-    }
-  };
 
   const saveCategoryHierarchy = async (category: Category, subcategories: CategorySub[]) => {
     setIsSavingHierarchy(true);
@@ -749,6 +757,66 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
                     </div>
                   </div>
                   <div className="col-12">
+                    <div className="subcategory-builder">
+                      <div className="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                          <h4 className="h6 fw-bold mb-1">Listing Fields</h4>
+                          <p className="text-muted small mb-0">Define custom fields that appear when creating listings in this category.</p>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn btn-outline-success btn-sm"
+                          onClick={() => setCreateCustomFields(prev => [...prev, { id: `new-${Date.now()}`, label: "", fieldType: "text", required: false, options: [], placeholder: "" }])}
+                        >
+                          <i className="fa-solid fa-plus me-2"></i>Add Field
+                        </button>
+                      </div>
+                      {createCustomFields.length === 0 ? (
+                        <div className="subcategory-empty">No custom listing fields defined. Default fields (Title, City, Quantity, Price, Description) will be shown.</div>
+                      ) : (
+                        <div className="subcategory-list">
+                          {createCustomFields.map((field, idx) => (
+                            <div className="subcategory-card" key={field.id}>
+                              <div className="d-flex justify-content-between align-items-center mb-2">
+                                <span className="small fw-bold text-muted">Field #{idx + 1}</span>
+                                <button type="button" className="btn btn-outline-danger btn-sm" onClick={() => setCreateCustomFields(prev => prev.filter((_, i) => i !== idx))}>
+                                  Remove
+                                </button>
+                              </div>
+                              <div className="row g-2 mb-2">
+                                <div className="col-md-5">
+                                  <input className="form-control form-control-sm" placeholder="Label (e.g. Grade)" value={field.label} onChange={(e) => setCreateCustomFields(prev => prev.map((f, i) => i === idx ? { ...f, label: e.target.value } : f))} />
+                                </div>
+                                <div className="col-md-3">
+                                  <select className="form-select form-select-sm" value={field.fieldType} onChange={(e) => setCreateCustomFields(prev => prev.map((f, i) => i === idx ? { ...f, fieldType: e.target.value as "text" | "number" | "select" } : f))}>
+                                    <option value="text">Text</option>
+                                    <option value="number">Number</option>
+                                    <option value="select">Dropdown</option>
+                                  </select>
+                                </div>
+                                <div className="col-md-2">
+                                  <div className="form-check mt-1">
+                                    <input className="form-check-input" type="checkbox" id={`create-req-${idx}`} checked={field.required} onChange={(e) => setCreateCustomFields(prev => prev.map((f, i) => i === idx ? { ...f, required: e.target.checked } : f))} />
+                                    <label className="form-check-label small" htmlFor={`create-req-${idx}`}>Required</label>
+                                  </div>
+                                </div>
+                                <div className="col-md-2">
+                                  <input className="form-control form-control-sm" placeholder="Placeholder" value={field.placeholder} onChange={(e) => setCreateCustomFields(prev => prev.map((f, i) => i === idx ? { ...f, placeholder: e.target.value } : f))} />
+                                </div>
+                              </div>
+                              {field.fieldType === "select" && (
+                                <div className="ms-2">
+                                  <span className="small text-muted">Options (comma-separated):</span>
+                                  <input className="form-control form-control-sm mt-1" placeholder="e.g. Premium, Standard, Low" value={field.options.join(", ")} onChange={(e) => setCreateCustomFields(prev => prev.map((f, i) => i === idx ? { ...f, options: e.target.value.split(",").map(o => o.trim()) } : f))} />
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="col-12">
                     <button className="btn btn-success px-4" type="submit" disabled={isCreatingCategory}>
                       <i className="fa-solid fa-plus me-2"></i>
                       {isCreatingCategory ? "Creating..." : "Create Category"}
@@ -763,58 +831,7 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
 
       {categoriesMessage && <div className="alert alert-info py-2 rounded-3">{categoriesMessage}</div>}
 
-      <section className="card border shadow-sm rounded-4 p-0 overflow-hidden bg-white mb-4">
-        <div className="table-responsive">
-          <table className="table align-middle mb-0">
-            <thead className="table-light">
-              <tr>
-                <th>Name</th>
-                <th>Description</th>
-                <th>Created At</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoadingCategories ? (
-                <tr>
-                  <td colSpan={4} className="text-center py-4 text-muted">
-                    <i className="fa-solid fa-spinner fa-spin me-2"></i>Loading categories...
-                  </td>
-                </tr>
-              ) : categories.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="text-center py-4 text-muted">
-                    <i className="fa-regular fa-folder-open me-2"></i>No categories available.
-                  </td>
-                </tr>
-              ) : (
-                categories.map((category) => (
-                  <tr key={category.id}>
-                    <td className="fw-semibold">{category.name}</td>
-                    <td>{category.description || "-"}</td>
-                    <td>{new Date(category.createdAt).toLocaleDateString()}</td>
-                    <td>
-                      <div className="d-flex gap-2">
-                        <button type="button" className="btn btn-outline-primary btn-sm" onClick={() => startEditCategory(category)}>
-                          <i className="fa-solid fa-pen me-1"></i>Edit
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-outline-danger btn-sm"
-                          onClick={() => onDeleteCategory(category.id)}
-                          disabled={isDeletingCategoryId === category.id}
-                        >
-                          {isDeletingCategoryId === category.id ? "Deleting..." : "Delete"}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+
 
       <section className="card border shadow-sm rounded-4 p-4 mb-4 bg-white">
         <div className="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
@@ -874,12 +891,21 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
                     <i className="fa-solid fa-pen me-2"></i>Edit Category
                   </button>
                   <button
-                    className="btn btn-outline-primary btn-sm w-100"
+                    className="btn btn-outline-primary btn-sm w-100 mb-2"
                     type="button"
                     onClick={openCreateSubcategory}
                     disabled={!selectedCategory || isSavingHierarchy}
                   >
                     <i className="fa-solid fa-layer-group me-2"></i>Add Subcategory
+                  </button>
+                  <button
+                    className="btn btn-outline-danger btn-sm w-100"
+                    type="button"
+                    onClick={() => selectedCategory && onDeleteCategory(selectedCategory.id)}
+                    disabled={!selectedCategory || isDeletingCategoryId === selectedCategory?.id}
+                  >
+                    <i className="fa-solid fa-trash me-2"></i>
+                    {isDeletingCategoryId === selectedCategory?.id ? "Deleting..." : "Delete Category"}
                   </button>
                 </div>
               </div>
@@ -1102,6 +1128,66 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
                       )}
                     </div>
                   </div>
+                  <div className="col-12">
+                    <div className="subcategory-builder">
+                      <div className="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                          <h4 className="h6 fw-bold mb-1">Listing Fields</h4>
+                          <p className="text-muted small mb-0">Define custom fields for listings in this category.</p>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn btn-outline-success btn-sm"
+                          onClick={() => setEditCustomFields(prev => [...prev, { id: `new-${Date.now()}`, label: "", fieldType: "text", required: false, options: [], placeholder: "" }])}
+                        >
+                          <i className="fa-solid fa-plus me-2"></i>Add Field
+                        </button>
+                      </div>
+                      {editCustomFields.length === 0 ? (
+                        <div className="subcategory-empty">No custom listing fields defined.</div>
+                      ) : (
+                        <div className="subcategory-list">
+                          {editCustomFields.map((field, idx) => (
+                            <div className="subcategory-card" key={field.id}>
+                              <div className="d-flex justify-content-between align-items-center mb-2">
+                                <span className="small fw-bold text-muted">Field #{idx + 1}</span>
+                                <button type="button" className="btn btn-outline-danger btn-sm" onClick={() => setEditCustomFields(prev => prev.filter((_, i) => i !== idx))}>
+                                  Remove
+                                </button>
+                              </div>
+                              <div className="row g-2 mb-2">
+                                <div className="col-md-5">
+                                  <input className="form-control form-control-sm" placeholder="Label (e.g. Grade)" value={field.label} onChange={(e) => setEditCustomFields(prev => prev.map((f, i) => i === idx ? { ...f, label: e.target.value } : f))} />
+                                </div>
+                                <div className="col-md-3">
+                                  <select className="form-select form-select-sm" value={field.fieldType} onChange={(e) => setEditCustomFields(prev => prev.map((f, i) => i === idx ? { ...f, fieldType: e.target.value as "text" | "number" | "select" } : f))}>
+                                    <option value="text">Text</option>
+                                    <option value="number">Number</option>
+                                    <option value="select">Dropdown</option>
+                                  </select>
+                                </div>
+                                <div className="col-md-2">
+                                  <div className="form-check mt-1">
+                                    <input className="form-check-input" type="checkbox" id={`edit-req-${idx}`} checked={field.required} onChange={(e) => setEditCustomFields(prev => prev.map((f, i) => i === idx ? { ...f, required: e.target.checked } : f))} />
+                                    <label className="form-check-label small" htmlFor={`edit-req-${idx}`}>Required</label>
+                                  </div>
+                                </div>
+                                <div className="col-md-2">
+                                  <input className="form-control form-control-sm" placeholder="Placeholder" value={field.placeholder} onChange={(e) => setEditCustomFields(prev => prev.map((f, i) => i === idx ? { ...f, placeholder: e.target.value } : f))} />
+                                </div>
+                              </div>
+                              {field.fieldType === "select" && (
+                                <div className="ms-2">
+                                  <span className="small text-muted">Options (comma-separated):</span>
+                                  <input className="form-control form-control-sm mt-1" placeholder="e.g. Premium, Standard, Low" value={field.options.join(", ")} onChange={(e) => setEditCustomFields(prev => prev.map((f, i) => i === idx ? { ...f, options: e.target.value.split(",").map(o => o.trim()) } : f))} />
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                   <div className="col-12 d-flex gap-2">
                     <button className="btn btn-primary" type="submit" disabled={isUpdatingCategory}>
                       {isUpdatingCategory ? "Saving..." : "Update Category"}
@@ -1285,27 +1371,6 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
           border-radius: 18px;
           padding: 18px;
           box-shadow: 0 12px 32px rgba(27, 67, 50, 0.08);
-        }
-
-        .hierarchy-legend {
-          font-size: 0.85rem;
-          color: #527365;
-          background: #f3f7f5;
-          border-radius: 999px;
-          padding: 8px 14px;
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          border: 1px solid #e0ebe5;
-          font-weight: 600;
-        }
-
-        .hierarchy-wrapper {
-          background: linear-gradient(180deg, rgba(27, 67, 50, 0.06), rgba(255, 255, 255, 0.95));
-          border: 1px solid #e1eee7;
-          border-radius: 18px;
-          padding: 18px;
-          box-shadow: 0 12px 32px rgba(27, 67, 50, 0.08);
           overflow-x: auto;
           -webkit-overflow-scrolling: touch;
         }
@@ -1326,8 +1391,7 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
         .hierarchy-grid {
           display: grid;
           gap: 16px;
-          grid-template-columns: repeat(3, minmax(300px, 1fr));
-          min-width: 950px;
+          grid-template-columns: repeat(3, 1fr);
         }
 
         .hierarchy-column {
@@ -1472,11 +1536,10 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
             margin: 10px auto;
           }
           .hierarchy-grid {
-            grid-template-columns: repeat(3, minmax(280px, 1fr));
-            min-width: 860px;
+            grid-template-columns: 1fr;
           }
           .hierarchy-column {
-            min-height: 400px;
+            min-height: auto;
           }
           .hierarchy-selection {
             flex-direction: column;

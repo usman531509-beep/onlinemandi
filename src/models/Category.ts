@@ -1,5 +1,14 @@
 import mongoose, { Model, Schema } from "mongoose";
 
+export type CustomFieldDefinition = {
+  _id?: mongoose.Types.ObjectId;
+  label: string;
+  fieldType: "text" | "number" | "select";
+  required: boolean;
+  options: string[];
+  placeholder?: string;
+};
+
 export type CategoryDocument = {
   name: string;
   description?: string;
@@ -12,9 +21,21 @@ export type CategoryDocument = {
       name: string;
     }[];
   }[];
+  customFields: CustomFieldDefinition[];
   createdAt: Date;
   updatedAt: Date;
 };
+
+const customFieldSchema = new Schema(
+  {
+    label: { type: String, required: true, trim: true },
+    fieldType: { type: String, enum: ["text", "number", "select"], default: "text" },
+    required: { type: Boolean, default: false },
+    options: { type: [String], default: [] },
+    placeholder: { type: String, trim: true },
+  },
+  { _id: true }
+);
 
 const categoryChildSchema = new Schema(
   {
@@ -37,6 +58,7 @@ const categorySchema = new Schema<CategoryDocument>(
     description: { type: String, trim: true },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
     subcategories: { type: [categorySubSchema], default: [] },
+    customFields: { type: [customFieldSchema], default: [] },
   },
   { timestamps: true }
 );

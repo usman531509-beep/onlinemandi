@@ -13,9 +13,6 @@ type PopulatedListing = {
   _id: mongoose.Types.ObjectId;
   title: string;
   category: string;
-  grade?: string;
-  moisture?: string;
-  delivery?: string;
   city: string;
   quantity: string;
   pricePerMaund: number;
@@ -39,9 +36,6 @@ function mapListing(listing: PopulatedListing) {
     id: String(listing._id),
     title: listing.title,
     category: listing.category,
-    grade: listing.grade || "Unspecified",
-    moisture: listing.moisture || "Not specified",
-    delivery: listing.delivery || "Negotiable",
     city: listing.city,
     quantity: listing.quantity,
     pricePerMaund: listing.pricePerMaund,
@@ -116,9 +110,6 @@ export async function POST(request: Request) {
       role?: ListingRole;
       title?: string;
       category?: string;
-      grade?: string;
-      moisture?: string;
-      delivery?: string;
       city?: string;
       quantity?: string;
       pricePerMaund?: number;
@@ -144,9 +135,6 @@ export async function POST(request: Request) {
 
     const title = body.title?.trim();
     const category = body.category?.trim();
-    const grade = body.grade?.trim() || "Unspecified";
-    const moisture = body.moisture?.trim() || "Not specified";
-    const delivery = body.delivery?.trim() || "Negotiable";
     const city = body.city?.trim();
     const quantity = body.quantity?.trim();
     const description = body.description?.trim();
@@ -195,31 +183,30 @@ export async function POST(request: Request) {
     }
 
     // --- Subscription-based listing limit enforcement ---
-    const FREE_LISTING_LIMIT = 0;
-    const currentListingCount = await Listing.countDocuments({ createdBy: user._id });
+    if (user.role !== "admin") {
+      const FREE_LISTING_LIMIT = 0;
+      const currentListingCount = await Listing.countDocuments({ createdBy: user._id });
 
-    const activeSub = await Subscription.findOne({
-      userId: user._id,
-      status: "active",
-      $or: [{ endDate: null }, { endDate: { $gt: new Date() } }],
-    }).populate("planId");
+      const activeSub = await Subscription.findOne({
+        userId: user._id,
+        status: "active",
+        $or: [{ endDate: null }, { endDate: { $gt: new Date() } }],
+      }).populate("planId");
 
-    const maxListings = activeSub?.planId?.listingLimit ?? FREE_LISTING_LIMIT;
+      const maxListings = activeSub?.planId?.listingLimit ?? FREE_LISTING_LIMIT;
 
-    if (currentListingCount >= maxListings) {
-      const planMsg = activeSub
-        ? `Your "${activeSub.planId.name}" plan allows a maximum of ${maxListings} listings. Please upgrade your plan or remove existing listings.`
-        : `You need an active subscription to create listings. Please subscribe to a plan first.`;
-      return NextResponse.json({ ok: false, message: planMsg }, { status: 403 });
+      if (currentListingCount >= maxListings) {
+        const planMsg = activeSub
+          ? `Your "${activeSub.planId.name}" plan allows a maximum of ${maxListings} listings. Please upgrade your plan or remove existing listings.`
+          : `You need an active subscription to create listings. Please subscribe to a plan first.`;
+        return NextResponse.json({ ok: false, message: planMsg }, { status: 403 });
+      }
     }
     // --- End limit enforcement ---
 
     const created = await Listing.create({
       title,
       category,
-      grade,
-      moisture,
-      delivery,
       city,
       quantity,
       pricePerMaund,

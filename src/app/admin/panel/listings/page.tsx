@@ -17,9 +17,6 @@ type Listing = {
   id: string;
   title: string;
   category: string;
-  grade?: string;
-  moisture?: string;
-  delivery?: string;
   city: string;
   quantity: string;
   pricePerMaund: number;
@@ -46,6 +43,14 @@ type Category = {
       name: string;
     }[];
   }[];
+  customFields?: {
+    id: string;
+    label: string;
+    fieldType: string;
+    required: boolean;
+    options: string[];
+    placeholder: string;
+  }[];
 };
 
 const initialListingForm = {
@@ -53,9 +58,6 @@ const initialListingForm = {
   category: "",
   subcategory: "",
   childCategory: "",
-  grade: "",
-  moisture: "",
-  delivery: "",
   city: "",
   quantityValue: "",
   quantityUnit: "ton",
@@ -157,9 +159,14 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
   useEffect(() => {
     if (!categoryOptions.length) return;
 
-    setListingForm((prev) => ({ ...prev, category: prev.category || categoryOptions[0] }));
+    setListingForm((prev) => {
+      const catName = prev.category || categoryOptions[0];
+      const cat = categories.find(c => c.name === catName);
+      const extraInfo = (cat?.customFields || []).map(f => ({ label: f.label, value: "" }));
+      return { ...prev, category: catName, extraInfo };
+    });
     setEditForm((prev) => ({ ...prev, category: prev.category || categoryOptions[0] }));
-  }, [categoryOptions]);
+  }, [categoryOptions, categories]);
 
   const loadCategories = useCallback(async () => {
     try {
@@ -264,9 +271,6 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
       category: hierarchy.category,
       subcategory: hierarchy.sub,
       childCategory: hierarchy.child,
-      grade: listing.grade || "Unspecified",
-      moisture: listing.moisture || "Not specified",
-      delivery: listing.delivery || "Negotiable",
       city: listing.city,
       quantityValue: parsedQuantity.quantityValue,
       quantityUnit: parsedQuantity.quantityUnit,
@@ -296,9 +300,6 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
           role: sessionUser.role,
           title: listingForm.title,
           category: listingForm.childCategory || listingForm.subcategory || listingForm.category,
-          grade: listingForm.grade,
-          moisture: listingForm.moisture,
-          delivery: listingForm.delivery,
           city: listingForm.city,
           quantity: formatQuantity(listingForm.quantityValue, listingForm.quantityUnit),
           pricePerMaund: Number(listingForm.pricePerMaund),
@@ -337,9 +338,6 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
           role: sessionUser.role,
           title: editForm.title,
           category: editForm.childCategory || editForm.subcategory || editForm.category,
-          grade: editForm.grade,
-          moisture: editForm.moisture,
-          delivery: editForm.delivery,
           city: editForm.city,
           quantity: formatQuantity(editForm.quantityValue, editForm.quantityUnit),
           pricePerMaund: Number(editForm.pricePerMaund),
@@ -464,7 +462,12 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
 
                   <div className="col-md-4">
                     <label className="form-label">Category</label>
-                    <select className="form-select" required value={listingForm.category} onChange={(e) => setListingForm((p) => ({ ...p, category: e.target.value, subcategory: "", childCategory: "" }))}>
+                    <select className="form-select" required value={listingForm.category} onChange={(e) => {
+                      const catName = e.target.value;
+                      const cat = categories.find(c => c.name === catName);
+                      const extraInfo = (cat?.customFields || []).map(f => ({ label: f.label, value: "" }));
+                      setListingForm((p) => ({ ...p, category: catName, subcategory: "", childCategory: "", extraInfo }));
+                    }}>
                       <option value="">Select Category</option>
                       {categoryOptions.map((option) => <option key={option} value={option}>{option}</option>)}
                     </select>
@@ -495,9 +498,23 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
                       {getChildCategoryOptions(listingForm.category, listingForm.subcategory).map((option) => <option key={option} value={option}>{option}</option>)}
                     </select>
                   </div>
-                  <div className="col-md-4"><label className="form-label">Grade</label><input className="form-control" value={listingForm.grade} onChange={(e) => setListingForm((p) => ({ ...p, grade: e.target.value }))} placeholder="" /></div>
-                  <div className="col-md-4"><label className="form-label">Moisture</label><input className="form-control" value={listingForm.moisture} onChange={(e) => setListingForm((p) => ({ ...p, moisture: e.target.value }))} placeholder="" /></div>
-                  <div className="col-md-4"><label className="form-label">Delivery</label><input className="form-control" value={listingForm.delivery} onChange={(e) => setListingForm((p) => ({ ...p, delivery: e.target.value }))} placeholder="" /></div>
+
+                  {(() => {
+                    const cat = categories.find(c => c.name === listingForm.category);
+                    return (cat?.customFields || []).map((field, idx) => (
+                      <div className="col-md-4" key={field.id}>
+                        <label className="form-label">{field.label}{field.required && <span className="text-danger"> *</span>}</label>
+                        {field.fieldType === "select" ? (
+                          <select className="form-select" required={field.required} value={listingForm.extraInfo?.[idx]?.value || ""} onChange={(e) => updateExtraInfo(idx, "value", e.target.value, false)}>
+                            <option value="">{field.placeholder || `Select ${field.label}`}</option>
+                            {field.options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                          </select>
+                        ) : (
+                          <input className="form-control" type={field.fieldType === "number" ? "number" : "text"} required={field.required} placeholder={field.placeholder || ""} value={listingForm.extraInfo?.[idx]?.value || ""} onChange={(e) => updateExtraInfo(idx, "value", e.target.value, false)} />
+                        )}
+                      </div>
+                    ));
+                  })()}
                   <div className="col-md-4"><label className="form-label">City</label><input className="form-control" required value={listingForm.city} onChange={(e) => setListingForm((p) => ({ ...p, city: e.target.value }))} /></div>
                   <div className="col-md-4">
                     <label className="form-label">Quantity</label>
@@ -525,22 +542,6 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
                   </div>
                   <div className="col-md-4"><label className="form-label">Price / Maund</label><input className="form-control" type="number" required value={listingForm.pricePerMaund} onChange={(e) => setListingForm((p) => ({ ...p, pricePerMaund: e.target.value }))} /></div>
                   <div className="col-12"><label className="form-label">Description</label><textarea className="form-control" rows={3} value={listingForm.description} onChange={(e) => setListingForm((p) => ({ ...p, description: e.target.value }))}></textarea></div>
-
-                  {listingForm.extraInfo?.map((info, idx) => (
-                    <div key={idx} className="col-12">
-                      <div className="d-flex gap-2">
-                        <input className="form-control" placeholder="Title (e.g. Color)" value={info.label} onChange={(e) => updateExtraInfo(idx, "label", e.target.value, false)} />
-                        <input className="form-control" placeholder="Information" value={info.value} onChange={(e) => updateExtraInfo(idx, "value", e.target.value, false)} />
-                        <button type="button" className="btn btn-outline-danger" onClick={() => removeExtraInfo(idx, false)}>×</button>
-                      </div>
-                    </div>
-                  ))}
-
-                  <div className="col-12">
-                    <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => addExtraInfo(false)}>
-                      <i className="fa-solid fa-plus me-1"></i>Add Extra Info
-                    </button>
-                  </div>
 
                   <div className="col-12">
                     <label className="form-label">Upload Images (multiple)</label>
@@ -607,9 +608,23 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
                   {getChildCategoryOptions(editForm.category, editForm.subcategory).map((option) => <option key={option} value={option}>{option}</option>)}
                 </select>
               </div>
-              <div className="col-md-4"><label className="form-label">Grade</label><input className="form-control" value={editForm.grade} onChange={(e) => setEditForm((p) => ({ ...p, grade: e.target.value }))} /></div>
-              <div className="col-md-4"><label className="form-label">Moisture</label><input className="form-control" value={editForm.moisture} onChange={(e) => setEditForm((p) => ({ ...p, moisture: e.target.value }))} /></div>
-              <div className="col-md-4"><label className="form-label">Delivery</label><input className="form-control" value={editForm.delivery} onChange={(e) => setEditForm((p) => ({ ...p, delivery: e.target.value }))} /></div>
+
+              {(() => {
+                const cat = categories.find(c => c.name === editForm.category);
+                return (cat?.customFields || []).map((field, idx) => (
+                  <div className="col-md-4" key={field.id}>
+                    <label className="form-label">{field.label}{field.required && <span className="text-danger"> *</span>}</label>
+                    {field.fieldType === "select" ? (
+                      <select className="form-select" required={field.required} value={editForm.extraInfo?.[idx]?.value || ""} onChange={(e) => updateExtraInfo(idx, "value", e.target.value, true)}>
+                        <option value="">{field.placeholder || `Select ${field.label}`}</option>
+                        {field.options.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                      </select>
+                    ) : (
+                      <input className="form-control" type={field.fieldType === "number" ? "number" : "text"} required={field.required} placeholder={field.placeholder || ""} value={editForm.extraInfo?.[idx]?.value || ""} onChange={(e) => updateExtraInfo(idx, "value", e.target.value, true)} />
+                    )}
+                  </div>
+                ));
+              })()}
               <div className="col-md-4"><label className="form-label">City</label><input className="form-control" required value={editForm.city} onChange={(e) => setEditForm((p) => ({ ...p, city: e.target.value }))} /></div>
               <div className="col-md-4">
                 <label className="form-label">Quantity</label>
@@ -741,9 +756,6 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
                 <div className="col-md-4"><div className="detail-item"><small>Category</small><p className="mb-0 fw-semibold">{selectedListing.category}</p></div></div>
                 <div className="col-md-4"><div className="detail-item"><small>City</small><p className="mb-0 fw-semibold">{selectedListing.city}</p></div></div>
                 <div className="col-md-4"><div className="detail-item"><small>Quantity</small><p className="mb-0 fw-semibold">{selectedListing.quantity}</p></div></div>
-                <div className="col-md-4"><div className="detail-item"><small>Grade</small><p className="mb-0 fw-semibold">{selectedListing.grade || "Unspecified"}</p></div></div>
-                <div className="col-md-4"><div className="detail-item"><small>Moisture</small><p className="mb-0 fw-semibold">{selectedListing.moisture || "Not specified"}</p></div></div>
-                <div className="col-md-4"><div className="detail-item"><small>Delivery</small><p className="mb-0 fw-semibold">{selectedListing.delivery || "Negotiable"}</p></div></div>
               </div>
               <div className="detail-item mb-3"><small>Description</small><p className="mb-0">{selectedListing.description || "No description provided."}</p></div>
 
