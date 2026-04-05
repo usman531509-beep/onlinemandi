@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import PaymentPlan from "@/models/PaymentPlan";
 import Stripe from "stripe";
-
-const stripe = new Stripe(process.env.Stripe_Secret!, {
-    apiVersion: "2024-12-18.acacia" as any,
-});
+import { getStripe } from "@/lib/stripe";
 
 export async function POST(req: NextRequest) {
     try {
