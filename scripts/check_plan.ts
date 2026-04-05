@@ -2,7 +2,7 @@ import { connectToDatabase } from "./src/lib/mongodb";
 import PaymentPlan from "./src/models/PaymentPlan";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.Stripe_Secret!, { apiVersion: "2024-12-18.acacia" as any });
+const stripe = new Stripe(process.env.STRIPE_SECRET!, { apiVersion: "2024-12-18.acacia" as any });
 
 async function check() {
   await connectToDatabase();

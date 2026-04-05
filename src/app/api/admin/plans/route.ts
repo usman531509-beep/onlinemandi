@@ -3,9 +3,11 @@ import { connectToDatabase } from "@/lib/mongodb";
 import PaymentPlan from "@/models/PaymentPlan";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.Stripe_Secret!, {
-    apiVersion: "2024-12-18.acacia" as any,
-});
+function getStripe() {
+    return new Stripe(process.env.STRIPE_SECRET!, {
+        apiVersion: "2024-12-18.acacia" as any,
+    });
+}
 
 export async function GET(req: NextRequest) {
     try {
@@ -29,6 +31,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
     try {
+        const stripe = getStripe();
         await connectToDatabase();
 
         const searchParams = req.nextUrl.searchParams;
