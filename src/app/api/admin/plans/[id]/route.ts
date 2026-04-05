@@ -3,12 +3,15 @@ import { connectToDatabase } from "@/lib/mongodb";
 import PaymentPlan from "@/models/PaymentPlan";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.Stripe_Secret!, {
-    apiVersion: "2024-12-18.acacia" as any,
-});
+function getStripe() {
+    return new Stripe(process.env.Stripe_Secret!, {
+        apiVersion: "2024-12-18.acacia" as any,
+    });
+}
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
+        const stripe = getStripe();
         await connectToDatabase();
 
         // In Next.js 15, dynamic route params must be awaited
@@ -95,6 +98,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
+        const stripe = getStripe();
         await connectToDatabase();
 
         // In Next.js 15, dynamic route params must be awaited

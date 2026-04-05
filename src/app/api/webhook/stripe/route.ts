@@ -6,9 +6,11 @@ import Subscription from "@/models/Subscription";
 import User from "@/models/User";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.Stripe_Secret!, {
-    apiVersion: "2024-12-18.acacia" as any,
-});
+function getStripe() {
+    return new Stripe(process.env.Stripe_Secret!, {
+        apiVersion: "2024-12-18.acacia" as any,
+    });
+}
 
 function computeEndDate(interval: string, startDate: Date): Date | null {
     const end = new Date(startDate);
@@ -26,6 +28,7 @@ function computeEndDate(interval: string, startDate: Date): Date | null {
 
 export async function POST(req: NextRequest) {
     try {
+        const stripe = getStripe();
         const body = await req.text();
         const signature = req.headers.get("stripe-signature");
 
