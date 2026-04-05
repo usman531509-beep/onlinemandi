@@ -9,12 +9,6 @@ declare global {
     | undefined;
 }
 
-const MONGODB_URI = process.env.MONGODB_URI || process.env.MongoDB_URI;
-
-if (!MONGODB_URI) {
-  throw new Error("Please define MONGODB_URI (or MongoDB_URI) in your environment variables.");
-}
-
 const cached =
   global.mongooseCache ??
   (global.mongooseCache = {
@@ -27,8 +21,16 @@ export async function connectToDatabase() {
     return cached.conn;
   }
 
+  const MONGODB_URI = process.env.MONGODB_URI || process.env.MongoDB_URI;
+
+  if (!MONGODB_URI) {
+    throw new Error(
+      "Please define MONGODB_URI in your environment variables."
+    );
+  }
+
   if (!cached.promise) {
-    cached.promise = mongoose.connect(MONGODB_URI!, {
+    cached.promise = mongoose.connect(MONGODB_URI, {
       bufferCommands: false,
       serverSelectionTimeoutMS: 10000,
     });

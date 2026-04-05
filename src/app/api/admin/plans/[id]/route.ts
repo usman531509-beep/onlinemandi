@@ -2,12 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import PaymentPlan from "@/models/PaymentPlan";
 import Stripe from "stripe";
-
-function getStripe() {
-    return new Stripe(process.env.STRIPE_SECRET!, {
-        apiVersion: "2024-12-18.acacia" as any,
-    });
-}
+import { getStripe } from "@/lib/stripe";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
