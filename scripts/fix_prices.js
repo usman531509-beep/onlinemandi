@@ -3,11 +3,11 @@ const Stripe = require('stripe');
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 
-const stripe = new Stripe(process.env.Stripe_Secret || process.env.STRIPE_SECRET_KEY, { apiVersion: "2024-12-18.acacia" });
+const stripe = new Stripe(process.env.STRIPE_SECRET || process.env.STRIPE_SECRET_KEY, { apiVersion: "2024-12-18.acacia" });
 
 async function fix() {
-    const uri = process.env.MongoDB_URI || process.env.MONGODB_URI;
-    if (!uri) throw new Error("No MongoDB_URI");
+    const uri = process.env.MONGODB_URI || process.env.MONGODB_URI;
+    if (!uri) throw new Error("No MONGODB_URI");
 
     const client = new MongoClient(uri);
     try {

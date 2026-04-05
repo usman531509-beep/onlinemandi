@@ -6,11 +6,9 @@ import Subscription from "@/models/Subscription";
 import User from "@/models/User";
 import Stripe from "stripe";
 
-function getStripe() {
-    return new Stripe(process.env.Stripe_Secret!, {
-        apiVersion: "2024-12-18.acacia" as any,
-    });
-}
+const stripe = new Stripe(process.env.Stripe_Secret!, {
+    apiVersion: "2024-12-18.acacia" as any,
+});
 
 function computeEndDate(interval: string, startDate: Date): Date | null {
     const end = new Date(startDate);
