@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 type UserRole = "admin" | "buyer" | "seller";
@@ -198,10 +198,53 @@ function filesToDataUrls(files: File[]) {
   );
 }
 
+/**
+ * Separated component to handle subscription success/cancel parameters from the URL.
+ * Wrapped in Suspense in the main RolePanel to avoid Next.js CSR bailout build errors.
+ */
+function SubscriptionParamsHandler({ 
+  pathname, 
+  loadActiveSubscription, 
+  loadStats, 
+  setShowSubscriptionSuccess, 
+  setShowSubscriptionCanceled 
+}: { 
+  pathname: string, 
+  loadActiveSubscription: () => Promise<void>, 
+  loadStats: () => Promise<void>,
+  setShowSubscriptionSuccess: (v: boolean) => void,
+  setShowSubscriptionCanceled: (v: boolean) => void
+}) {
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const success = searchParams?.get("success");
+    const canceled = searchParams?.get("canceled");
+
+    if (success === "true") {
+      setShowSubscriptionSuccess(true);
+      void loadActiveSubscription();
+      void loadStats();
+      // Clean the URL to avoid re-triggering
+      const newUrl = pathname;
+      window.history.replaceState({ ...window.history.state }, "", newUrl);
+      setTimeout(() => setShowSubscriptionSuccess(false), 8000);
+    }
+
+    if (canceled === "true") {
+      setShowSubscriptionCanceled(true);
+      const newUrl = pathname;
+      window.history.replaceState({ ...window.history.state }, "", newUrl);
+      setTimeout(() => setShowSubscriptionCanceled(false), 5000);
+    }
+  }, [searchParams, pathname, loadActiveSubscription, loadStats, setShowSubscriptionSuccess, setShowSubscriptionCanceled]);
+
+  return null;
+}
+
 export default function RolePanel({ role, title, subtitle, cards }: RolePanelProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [sessionUser, setSessionUser] = useState<SessionUser | null>(null);
   const [isSessionReady, setIsSessionReady] = useState(false);
 
@@ -722,28 +765,6 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
     }
   }, [isSessionReady, sessionUser, role, loadActiveSubscription]);
 
-  useEffect(() => {
-    const success = searchParams?.get("success");
-    const canceled = searchParams?.get("canceled");
-
-    if (success === "true") {
-      setShowSubscriptionSuccess(true);
-      void loadActiveSubscription();
-      void loadStats();
-      // Clean the URL to avoid re-triggering
-      const newUrl = pathname;
-      window.history.replaceState({ ...window.history.state }, "", newUrl);
-      setTimeout(() => setShowSubscriptionSuccess(false), 8000);
-    }
-
-    if (canceled === "true") {
-      setShowSubscriptionCanceled(true);
-      const newUrl = pathname;
-      window.history.replaceState({ ...window.history.state }, "", newUrl);
-      setTimeout(() => setShowSubscriptionCanceled(false), 5000);
-    }
-  }, [searchParams, pathname, loadActiveSubscription, loadStats]);
-
   const onCreateListingImagesChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
     if (!files.length) return;
@@ -1196,7 +1217,17 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
         ];
 
   return (
-    <main className="panel-page pt-0 pt-md-4 pb-4 pb-md-5">
+    <>
+      <Suspense fallback={null}>
+        <SubscriptionParamsHandler 
+          pathname={pathname}
+          loadActiveSubscription={loadActiveSubscription}
+          loadStats={loadStats}
+          setShowSubscriptionSuccess={setShowSubscriptionSuccess}
+          setShowSubscriptionCanceled={setShowSubscriptionCanceled}
+        />
+      </Suspense>
+      <main className="panel-page pt-0 pt-md-4 pb-4 pb-md-5">
       <div className="container-fluid panel-shell position-relative">
         {!isSessionReady ? (
           <div className="card border shadow-sm p-4 p-md-5 text-center rounded-4 bg-white">
@@ -3737,6 +3768,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
           </div>
         </div>
       )}
-    </main >
+    </main>
+    </>
   );
 }
