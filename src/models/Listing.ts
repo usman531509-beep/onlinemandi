@@ -2,6 +2,7 @@ import mongoose, { Model, Schema, Types } from "mongoose";
 
 export type ListingDocument = {
   title: string;
+  group: string;
   category: string;
   city: string;
   quantity: string;
@@ -17,6 +18,7 @@ export type ListingDocument = {
 const listingSchema = new Schema<ListingDocument>(
   {
     title: { type: String, required: true, trim: true },
+    group: { type: String, required: true, default: "General", trim: true },
     category: { type: String, required: true, trim: true },
     city: { type: String, required: true, trim: true },
     quantity: { type: String, required: true, trim: true },

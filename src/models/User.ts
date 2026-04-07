@@ -29,6 +29,9 @@ export type UserDocument = {
   assignedCategories: mongoose.Types.ObjectId[];
   sellerProfile?: SellerProfile;
   verificationStatus: VerificationStatus;
+  listingsUsedCount?: number;
+  broadcastsUsedCount?: number;
+  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -70,10 +73,16 @@ const userSchema = new Schema<UserDocument>(
       enum: ["unsubmitted", "pending", "verified", "rejected"],
       default: "unsubmitted",
     },
+    listingsUsedCount: { type: Number, default: 0 },
+    broadcastsUsedCount: { type: Number, default: 0 },
+    isActive: { type: Boolean, default: true },
   },
   { timestamps: true }
 );
 
-const User = (mongoose.models.User as Model<UserDocument>) || mongoose.model<UserDocument>("User", userSchema);
+if (mongoose.models.User) {
+  delete mongoose.models.User;
+}
+const User = mongoose.model<UserDocument>("User", userSchema);
 
 export default User;

@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "OnlineMandi Pakistan | Digital B2B Platform",
-  description: "Pakistan digital agricultural marketplace for bulk trade.",
+  title: "OnlineMundi - Pakistan's Largest Online Mandi",
+  description: "Join Pakistan's largest online marketplace for buying and selling crops. Connect directly with farmers and wholesalers on OnlineMundi.",
 };
 
 export default function RootLayout({

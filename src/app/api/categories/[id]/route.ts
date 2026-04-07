@@ -3,11 +3,13 @@ import { NextResponse } from "next/server";
 
 import { connectToDatabase } from "@/lib/mongodb";
 import Category from "@/models/Category";
+import Group from "@/models/Group";
 import User from "@/models/User";
 
 type CategoryBody = {
   userId?: string;
   role?: string;
+  group?: string;
   name?: string;
   description?: string;
   subcategories?: {
@@ -66,18 +68,26 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
     }
 
     const body = (await request.json()) as CategoryBody;
+    const group = body.group?.trim();
     const name = body.name?.trim();
     const description = body.description?.trim();
     const subcategories = body.subcategories;
 
-    if (!name) {
-      return NextResponse.json({ ok: false, message: "Category name is required." }, { status: 400 });
+    if (!name || !group) {
+      return NextResponse.json({ ok: false, message: "Group and Category name are required." }, { status: 400 });
     }
 
     await connectToDatabase();
 
     const auth = await validateAdmin(body.userId, body.role);
     if (!auth.ok) return auth.response;
+
+    // Ensure the group exists (case-insensitive) and use its authoritative name
+    const groupExists = await Group.findOne({ name: { $regex: new RegExp(`^${group}$`, "i") } });
+    if (!groupExists) {
+      return NextResponse.json({ ok: false, message: `Group '${group}' does not exist. Please create it first.` }, { status: 400 });
+    }
+    const finalGroupName = groupExists.name; // Match casing with the DB record
 
     const category = await Category.findById(id);
     if (!category) {
@@ -94,6 +104,7 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
     }
 
     const updatePayload: any = {
+      group: finalGroupName,
       name,
       description,
     };

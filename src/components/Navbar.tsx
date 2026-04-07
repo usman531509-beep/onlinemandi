@@ -27,7 +27,7 @@ export default function Navbar() {
 
   useEffect(() => {
     const loadSession = () => {
-      const raw = localStorage.getItem("mandi:sessionUser");
+      const raw = localStorage.getItem("mundi:sessionUser");
       if (!raw) {
         setSessionUser(null);
         return;
@@ -36,7 +36,7 @@ export default function Navbar() {
       try {
         setSessionUser(JSON.parse(raw) as SessionUser);
       } catch {
-        localStorage.removeItem("mandi:sessionUser");
+        localStorage.removeItem("mundi:sessionUser");
         setSessionUser(null);
       }
     };
@@ -48,7 +48,7 @@ export default function Navbar() {
 
   const handleLogout = (e: React.MouseEvent) => {
     e.preventDefault();
-    localStorage.removeItem("mandi:sessionUser");
+    localStorage.removeItem("mundi:sessionUser");
     window.dispatchEvent(new Event("storage"));
     setSessionUser(null);
     router.push("/");
@@ -58,7 +58,7 @@ export default function Navbar() {
     <nav className="navbar navbar-expand-lg navbar-dark sticky-top shadow py-2 py-lg-3">
       <div className="container">
         <Link className="navbar-brand fw-bold text-white d-flex align-items-center" href="/">
-          <span>ONLINE<span className="text-warning">MANDI</span></span>
+          <span>ONLINE<span className="text-warning">MUNDI</span></span>
           <small className="ms-2 opacity-75 d-none d-sm-inline" style={{ fontSize: "10px", letterSpacing: "1px" }}>PAKISTAN</small>
         </Link>
 

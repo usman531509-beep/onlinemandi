@@ -6,11 +6,17 @@ import Category from "@/models/Category";
 import Listing from "@/models/Listing";
 import User, { UserRole } from "@/models/User";
 import Subscription from "@/models/Subscription";
+import Setting from "@/models/Setting";
 
 type ListingRole = UserRole;
+type PopulatedPlan = {
+  name?: string;
+  listingLimit?: number;
+};
 
 type PopulatedListing = {
   _id: mongoose.Types.ObjectId;
+  group?: string;
   title: string;
   category: string;
   city: string;
@@ -34,6 +40,7 @@ type PopulatedListing = {
 function mapListing(listing: PopulatedListing) {
   return {
     id: String(listing._id),
+    group: listing.group || "General",
     title: listing.title,
     category: listing.category,
     city: listing.city,
@@ -109,6 +116,7 @@ export async function POST(request: Request) {
       userId?: string;
       role?: ListingRole;
       title?: string;
+      group?: string;
       category?: string;
       city?: string;
       quantity?: string;
@@ -116,6 +124,7 @@ export async function POST(request: Request) {
       description?: string;
       images?: string[];
       extraInfo?: { label: string; value: string }[];
+      onBehalfOfSellerId?: string;
     };
 
     const userId = body.userId;
@@ -134,6 +143,7 @@ export async function POST(request: Request) {
     }
 
     const title = body.title?.trim();
+    const group = body.group?.trim() || "General";
     const category = body.category?.trim();
     const city = body.city?.trim();
     const quantity = body.quantity?.trim();
@@ -149,7 +159,7 @@ export async function POST(request: Request) {
       : [];
     const pricePerMaund = Number(body.pricePerMaund);
 
-    if (!title || !category || !city || !quantity || Number.isNaN(pricePerMaund)) {
+    if (!title || !group || !category || !city || !quantity || Number.isNaN(pricePerMaund)) {
       return NextResponse.json({ ok: false, message: "Please fill all required listing fields." }, { status: 400 });
     }
 
@@ -160,52 +170,74 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, message: "Unauthorized user context." }, { status: 403 });
     }
 
-    const categoryExists = await Category.findOne({ name: new RegExp(`^${category}$`, "i") });
+    const categoryExists = await Category.findOne({
+      $or: [
+        { name: new RegExp(`^${category}$`, "i") },
+        { "subcategories.name": new RegExp(`^${category}$`, "i") },
+        { "subcategories.children.name": new RegExp(`^${category}$`, "i") },
+      ],
+    });
     if (!categoryExists) {
       return NextResponse.json({ ok: false, message: "Selected category does not exist." }, { status: 400 });
     }
 
-    if (user.role === "seller") {
-      const rawUser = await User.collection.findOne(
-        { _id: new mongoose.Types.ObjectId(userId) },
-        { projection: { assignedCategories: 1 } }
-      );
-      const sellerCategoryIds = Array.isArray(rawUser?.assignedCategories)
-        ? rawUser.assignedCategories.map((categoryId) => String(categoryId))
-        : [];
-      const isAllowed = sellerCategoryIds.includes(String(categoryExists._id));
-      if (!isAllowed) {
-        return NextResponse.json(
-          { ok: false, message: "You can only create listings in your assigned categories." },
-          { status: 403 }
-        );
+    let authorId = user._id;
+    let quotaOwner = user;
+    if (body.onBehalfOfSellerId) {
+      if (user.role !== "admin") {
+        return NextResponse.json({ ok: false, message: "Only administrators can create listings on behalf of others." }, { status: 403 });
       }
+      if (!mongoose.Types.ObjectId.isValid(body.onBehalfOfSellerId)) {
+        return NextResponse.json({ ok: false, message: "Invalid onBehalfOfSellerId." }, { status: 400 });
+      }
+      const targetSeller = await User.findById(body.onBehalfOfSellerId);
+      if (!targetSeller || targetSeller.role !== "seller") {
+        return NextResponse.json({ ok: false, message: "The target user must be a registered seller." }, { status: 400 });
+      }
+      authorId = targetSeller._id;
+      quotaOwner = targetSeller;
     }
 
+    // Assignment check removed
+
     // --- Subscription-based listing limit enforcement ---
-    if (user.role !== "admin") {
-      const FREE_LISTING_LIMIT = 0;
-      const currentListingCount = await Listing.countDocuments({ createdBy: user._id });
+    let shouldIncrementFreeListings = false;
+    let activeSubscriptionToIncrement: { _id: mongoose.Types.ObjectId } | null = null;
+    if (quotaOwner.role !== "admin") {
+      const freeListingLimitSetting = await Setting.findOne({ key: "freeListingLimit" });
+      const freeListingLimit = Number(freeListingLimitSetting?.value || 0);
+      const freeListingsUsed = quotaOwner.listingsUsedCount || 0;
 
       const activeSub = await Subscription.findOne({
-        userId: user._id,
+        userEmail: quotaOwner.email.toLowerCase(),
         status: "active",
         $or: [{ endDate: null }, { endDate: { $gt: new Date() } }],
-      }).populate("planId");
+      })
+        .sort({ startDate: -1, createdAt: -1, _id: -1 })
+        .populate("planId");
 
-      const maxListings = activeSub?.planId?.listingLimit ?? FREE_LISTING_LIMIT;
+      const plan = activeSub?.planId as PopulatedPlan | undefined;
+      const paidListingLimit = plan?.listingLimit ?? 0;
+      const paidListingsUsed = activeSub?.listingsUsedCount || 0;
+      const hasPaidListingCapacity = !!activeSub && paidListingsUsed < paidListingLimit;
+      const hasFreeListingCapacity = freeListingsUsed < freeListingLimit;
 
-      if (currentListingCount >= maxListings) {
-        const planMsg = activeSub
-          ? `Your "${activeSub.planId.name}" plan allows a maximum of ${maxListings} listings. Please upgrade your plan or remove existing listings.`
-          : `You need an active subscription to create listings. Please subscribe to a plan first.`;
-        return NextResponse.json({ ok: false, message: planMsg }, { status: 403 });
+      if (hasPaidListingCapacity) {
+        activeSubscriptionToIncrement = { _id: activeSub._id };
+      } else if (hasFreeListingCapacity) {
+        shouldIncrementFreeListings = true;
+      } else {
+        const message = activeSub
+          ? `You have used all ${paidListingLimit} paid ${paidListingLimit === 1 ? "listing" : "listings"} in your "${plan?.name || "current"}" plan and all ${freeListingLimit} free ${freeListingLimit === 1 ? "listing" : "listings"}. Please upgrade your plan.`
+          : `You have reached your limit of ${freeListingLimit} free ${freeListingLimit === 1 ? "listing" : "listings"}. Please purchase a plan to continue.`;
+        return NextResponse.json({ ok: false, message }, { status: 403 });
       }
     }
     // --- End limit enforcement ---
 
     const created = await Listing.create({
       title,
+      group,
       category,
       city,
       quantity,
@@ -213,8 +245,44 @@ export async function POST(request: Request) {
       description,
       images,
       extraInfo,
-      createdBy: user._id,
+      createdBy: authorId,
     });
+
+    // Increment usage count for the author (seller/buyer) if not admin
+    if (quotaOwner.role !== "admin") {
+      if (activeSubscriptionToIncrement) {
+        console.log(`[API:Listings] Incrementing paid listingsUsedCount for subscription ${activeSubscriptionToIncrement._id}`);
+        const updatedSubscription = await Subscription.findOneAndUpdate(
+          {
+            _id: activeSubscriptionToIncrement._id,
+            status: "active",
+          },
+          { $inc: { listingsUsedCount: 1 } },
+          { new: true }
+        );
+
+        if (updatedSubscription) {
+          const paidLiveListings = await Listing.countDocuments({
+            createdBy: authorId,
+            createdAt: { $gte: new Date(updatedSubscription.startDate) },
+          });
+
+          const reconciledPaidUsage = Math.max(
+            Number(updatedSubscription.listingsUsedCount || 0),
+            paidLiveListings
+          );
+
+          if (reconciledPaidUsage !== Number(updatedSubscription.listingsUsedCount || 0)) {
+            await Subscription.findByIdAndUpdate(updatedSubscription._id, {
+              $set: { listingsUsedCount: reconciledPaidUsage },
+            });
+          }
+        }
+      } else if (shouldIncrementFreeListings) {
+        console.log(`[API:Listings] Incrementing free listingsUsedCount for ${authorId}`);
+        await User.findByIdAndUpdate(authorId, { $inc: { listingsUsedCount: 1 } });
+      }
+    }
 
     const listing = await Listing.findById(created._id).populate("createdBy", "fullName email role verificationStatus").lean();
 

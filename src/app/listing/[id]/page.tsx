@@ -99,7 +99,7 @@ export default function ListingDetailPage() {
     useEffect(() => {
         if (!listing) return;
         try {
-            const raw = localStorage.getItem("mandi:sessionUser");
+            const raw = localStorage.getItem("mundi:sessionUser");
             if (!raw) { setContactCheckDone(true); return; }
             const sessionUser = JSON.parse(raw);
 
@@ -412,7 +412,7 @@ export default function ListingDetailPage() {
                                                 href={`https://wa.me/${listing.createdBy.phoneNumber.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`I am interested in ${listing.title}`)}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="btn btn-mandi w-100 py-3 fw-bold fs-5 rounded border-0"
+                                                className="btn btn-mundi w-100 py-3 fw-bold fs-5 rounded border-0"
                                             >
                                                 <i className="fab fa-whatsapp me-2"></i>Contact via WhatsApp
                                             </a>
@@ -613,7 +613,7 @@ export default function ListingDetailPage() {
 
             <footer className="bg-dark text-white py-4 mt-5">
                 <div className="container text-center">
-                    <p className="mb-1">© 2026 OnlineMandi Pakistan - Direct Agricultural Trade Platform</p>
+                    <p className="mb-1">© 2026 OnlineMundi Pakistan - Direct Agricultural Trade Platform</p>
                     <small className="text-muted">
                         Designed for Bulk Trading only. Commission charged on deal finalization.
                     </small>

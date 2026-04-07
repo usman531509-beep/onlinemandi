@@ -10,6 +10,7 @@ type ListingRole = UserRole;
 
 type PopulatedListing = {
   _id: mongoose.Types.ObjectId;
+  group?: string;
   title: string;
   category: string;
   city: string;
@@ -38,6 +39,7 @@ type PopulatedListing = {
 function mapListing(listing: PopulatedListing) {
   return {
     id: String(listing._id),
+    group: listing.group || "General",
     title: listing.title,
     category: listing.category,
     city: listing.city,
@@ -135,6 +137,7 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
       userId?: string;
       role?: ListingRole;
       title?: string;
+      group?: string;
       category?: string;
       city?: string;
       quantity?: string;
@@ -160,6 +163,7 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
     }
 
     const title = body.title?.trim();
+    const group = body.group?.trim() || "General";
     const category = body.category?.trim();
     const city = body.city?.trim();
     const quantity = body.quantity?.trim();
@@ -175,7 +179,7 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
       : [];
     const pricePerMaund = Number(body.pricePerMaund);
 
-    if (!title || !category || !city || !quantity || Number.isNaN(pricePerMaund)) {
+    if (!title || !group || !category || !city || !quantity || Number.isNaN(pricePerMaund)) {
       return NextResponse.json({ ok: false, message: "Please fill all required listing fields." }, { status: 400 });
     }
 
@@ -184,28 +188,13 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
       return NextResponse.json({ ok: false, message: "Selected category does not exist." }, { status: 400 });
     }
 
-    if (access.user.role === "seller") {
-      const rawUser = await User.collection.findOne(
-        { _id: new mongoose.Types.ObjectId(String(access.user._id)) },
-        { projection: { assignedCategories: 1 } }
-      );
-      const sellerCategoryIds = Array.isArray(rawUser?.assignedCategories)
-        ? rawUser.assignedCategories.map((categoryId) => String(categoryId))
-        : [];
-      const isAllowed = sellerCategoryIds.includes(String(categoryExists._id));
-      if (!isAllowed) {
-        return NextResponse.json(
-          { ok: false, message: "You can only use your assigned categories." },
-          { status: 403 }
-        );
-      }
-    }
-
+    // Assignment check removed
     await Listing.collection.updateOne(
       { _id: new mongoose.Types.ObjectId(id) },
       {
         $set: {
           title,
+          group,
           category,
           city,
           quantity,

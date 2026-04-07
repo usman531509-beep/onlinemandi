@@ -1,7 +1,10 @@
 import mongoose, { Model, Schema } from "mongoose";
 
 export type SellRequestDocument = {
+    group: string;
     cropType: string;
+    subcategory?: string;
+    childCategory?: string;
     variety?: string;
     moistureLevel?: number;
     qualityGrade?: string;
@@ -18,7 +21,10 @@ export type SellRequestDocument = {
 
 const sellRequestSchema = new Schema<SellRequestDocument>(
     {
+        group: { type: String, required: true },
         cropType: { type: String, required: true },
+        subcategory: { type: String },
+        childCategory: { type: String },
         variety: { type: String },
         moistureLevel: { type: Number },
         qualityGrade: { type: String },

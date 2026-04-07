@@ -5,6 +5,7 @@ export interface ISubscription extends Document {
     userEmail: string;
     planId: mongoose.Types.ObjectId;
     stripeSessionId: string;
+    listingsUsedCount: number;
     status: "active" | "canceled" | "expired";
     startDate: Date;
     endDate?: Date | null;
@@ -35,6 +36,12 @@ const SubscriptionSchema: Schema = new Schema(
             required: true,
             trim: true,
         },
+        listingsUsedCount: {
+            type: Number,
+            default: 0,
+            min: 0,
+            required: true,
+        },
         status: {
             type: String,
             enum: ["active", "canceled", "expired"],
@@ -56,4 +63,16 @@ const SubscriptionSchema: Schema = new Schema(
     }
 );
 
-export default mongoose.models.Subscription || mongoose.model<ISubscription>("Subscription", SubscriptionSchema);
+const existingSubscriptionModel = mongoose.models.Subscription as mongoose.Model<ISubscription> | undefined;
+
+// In dev, Next.js can retain an older compiled model after schema changes.
+// If that cached model is missing newer paths like listingsUsedCount, rebuild it.
+if (existingSubscriptionModel && !existingSubscriptionModel.schema.path("listingsUsedCount")) {
+    delete mongoose.models.Subscription;
+}
+
+const Subscription =
+    (mongoose.models.Subscription as mongoose.Model<ISubscription> | undefined) ||
+    mongoose.model<ISubscription>("Subscription", SubscriptionSchema);
+
+export default Subscription;

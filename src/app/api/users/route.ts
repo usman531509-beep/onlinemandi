@@ -26,6 +26,7 @@ type ListedUser = {
     submittedAt?: Date;
     documents?: { name: string; fileUrl: string; uploadedAt: Date }[];
   };
+  isActive: boolean;
   createdAt: Date;
 };
 
@@ -55,6 +56,7 @@ function mapUser(user: ListedUser) {
             })),
           }
         : null,
+    isActive: user.isActive ?? true,
     createdAt: user.createdAt,
   };
 }
@@ -100,6 +102,7 @@ export async function GET(request: Request) {
             assignedCategories: 1,
             verificationStatus: 1,
             sellerProfile: 1,
+            isActive: 1,
             createdAt: 1,
           },
         }
@@ -207,5 +210,57 @@ export async function POST(request: Request) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json({ ok: false, message: "Failed to create user.", error: message }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get("userId"); // Admin ID
+    const targetUserId = searchParams.get("targetUserId"); // User to delete
+
+    if (!userId || !targetUserId) {
+      return NextResponse.json({ ok: false, message: "userId and targetUserId are required." }, { status: 400 });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(userId) || !mongoose.Types.ObjectId.isValid(targetUserId)) {
+      return NextResponse.json({ ok: false, message: "Invalid ID format." }, { status: 400 });
+    }
+
+    if (userId === targetUserId) {
+      return NextResponse.json({ ok: false, message: "You cannot delete your own account." }, { status: 400 });
+    }
+
+    await connectToDatabase();
+
+    const currentUser = await User.findById(userId);
+    if (!currentUser || currentUser.role !== "admin") {
+      return NextResponse.json({ ok: false, message: "Only admin can delete users." }, { status: 403 });
+    }
+
+    // Perform cascading deletion
+    // 1. Delete associated Listings
+    const Listing = (await import("@/models/Listing")).default;
+    await Listing.deleteMany({ createdBy: targetUserId });
+
+    // 2. Delete associated Broadcasts
+    const Broadcast = (await import("@/models/Broadcast")).default;
+    await Broadcast.deleteMany({ buyerId: targetUserId });
+
+    // 3. Delete associated Subscriptions
+    const Subscription = (await import("@/models/Subscription")).default;
+    await Subscription.deleteMany({ userId: targetUserId });
+
+    // 4. Finally delete the user
+    const deletedUser = await User.findByIdAndDelete(targetUserId);
+
+    if (!deletedUser) {
+      return NextResponse.json({ ok: false, message: "User not found." }, { status: 404 });
+    }
+
+    return NextResponse.json({ ok: true, message: "User and all associated data deleted successfully." }, { status: 200 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ ok: false, message: "Failed to delete user.", error: message }, { status: 500 });
   }
 }

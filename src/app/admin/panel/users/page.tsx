@@ -31,6 +31,7 @@ type ListedUser = {
     submittedAt: string | null;
     documents: { name: string; fileUrl: string; uploadedAt: string }[];
   } | null;
+  isActive: boolean;
   createdAt: string;
 };
 
@@ -49,6 +50,14 @@ function UsersContent({ sessionUser }: { sessionUser: SessionUser }) {
   const [message, setMessage] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
+  const [isEditingUser, setIsEditingUser] = useState(false);
+  const [selectedEditUser, setSelectedEditUser] = useState<ListedUser | null>(null);
+  const [editForm, setEditForm] = useState({
+    fullName: "",
+    email: "",
+    phoneNumber: "",
+    password: "",
+  });
   const [isAssigning, setIsAssigning] = useState(false);
   const [assigningSeller, setAssigningSeller] = useState<ListedUser | null>(null);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
@@ -57,10 +66,14 @@ function UsersContent({ sessionUser }: { sessionUser: SessionUser }) {
   const [profileModalMessage, setProfileModalMessage] = useState("");
   const [isUpdatingVerification, setIsUpdatingVerification] = useState(false);
   const [selectedPreviewImage, setSelectedPreviewImage] = useState<string | null>(null);
+  const [deletingUser, setDeletingUser] = useState<ListedUser | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterRole, setFilterRole] = useState("all");
   const [filterVerificationStatus, setFilterVerificationStatus] = useState("all");
+  const [togglingUser, setTogglingUser] = useState<ListedUser | null>(null);
+  const [isToggling, setIsToggling] = useState(false);
 
   const [createForm, setCreateForm] = useState({
     fullName: "",
@@ -174,6 +187,57 @@ function UsersContent({ sessionUser }: { sessionUser: SessionUser }) {
     }
   };
 
+  const openEditUserModal = (user: ListedUser) => {
+    setSelectedEditUser(user);
+    setEditForm({
+      fullName: user.fullName || "",
+      email: user.email || "",
+      phoneNumber: user.phoneNumber || "",
+      password: "",
+    });
+    setMessage("");
+  };
+
+  const closeEditUserModal = () => {
+    setSelectedEditUser(null);
+  };
+
+  const onUpdateUser = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selectedEditUser) return;
+    setIsEditingUser(true);
+    setMessage("");
+
+    try {
+      const response = await fetch(`/api/users/${selectedEditUser.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: sessionUser.id,
+          role: sessionUser.role,
+          fullName: editForm.fullName,
+          email: editForm.email,
+          phoneNumber: editForm.phoneNumber,
+          password: editForm.password || undefined,
+        }),
+      });
+
+      const data = (await response.json()) as { ok: boolean; message?: string };
+      if (!response.ok || !data.ok) {
+        setMessage(data.message || "Failed to update user.");
+        return;
+      }
+
+      setMessage("User updated successfully.");
+      closeEditUserModal();
+      await loadUsers();
+    } catch {
+      setMessage("Network error while updating user.");
+    } finally {
+      setIsEditingUser(false);
+    }
+  };
+
   const openAssignModal = (seller: ListedUser) => {
     setAssigningSeller(seller);
     setSelectedCategoryIds(seller.assignedCategoryIds || []);
@@ -271,6 +335,75 @@ function UsersContent({ sessionUser }: { sessionUser: SessionUser }) {
       setProfileModalMessage("Network error while updating verification status.");
     } finally {
       setIsUpdatingVerification(false);
+    }
+  };
+
+  const openDeleteUserModal = (user: ListedUser) => {
+    setDeletingUser(user);
+    setMessage("");
+  };
+
+  const closeDeleteUserModal = () => {
+    setDeletingUser(null);
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deletingUser) return;
+    setIsDeleting(true);
+    setMessage("");
+
+    try {
+      const response = await fetch(
+        `/api/users?userId=${sessionUser.id}&targetUserId=${deletingUser.id}`,
+        { method: "DELETE" }
+      );
+      const data = (await response.json()) as { ok: boolean; message?: string };
+
+      if (!response.ok || !data.ok) {
+        setMessage(data.message || "Failed to delete user.");
+        return;
+      }
+
+      setUsers((prev) => prev.filter((u) => u.id !== deletingUser.id));
+      closeDeleteUserModal();
+    } catch {
+      setMessage("Network error while deleting user.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleToggleUserStatus = async () => {
+    if (!togglingUser) return;
+    setIsToggling(true);
+    setMessage("");
+
+    try {
+      const response = await fetch(`/api/users/${togglingUser.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: sessionUser.id,
+          role: sessionUser.role,
+          isActive: !togglingUser.isActive,
+        }),
+      });
+
+      const data = (await response.json()) as { ok: boolean; message?: string };
+      if (!response.ok || !data.ok) {
+        setMessage(data.message || "Failed to update user status.");
+        return;
+      }
+
+      setUsers((prev) =>
+        prev.map((u) => (u.id === togglingUser.id ? { ...u, isActive: !togglingUser.isActive } : u))
+      );
+      setTogglingUser(null);
+      setMessage(`User ${!togglingUser.isActive ? "enabled" : "disabled"} successfully.`);
+    } catch {
+      setMessage("Network error while updating user status.");
+    } finally {
+      setIsToggling(false);
     }
   };
 
@@ -467,6 +600,79 @@ function UsersContent({ sessionUser }: { sessionUser: SessionUser }) {
         </div>
       )}
 
+      {selectedEditUser && (
+        <div className="modal-backdrop-modern">
+          <div className="position-relative w-100 h-100 d-flex justify-content-center align-items-center p-3">
+            <div
+              className="position-absolute top-0 start-0 w-100 h-100"
+              onClick={closeEditUserModal}
+            ></div>
+            <div className="modal-card-modern card border-0 shadow-lg rounded-4 w-100" style={{ maxWidth: 800 }}>
+              <div className="card-body p-4 p-md-5">
+                <div className="d-flex justify-content-between align-items-center mb-4">
+                  <div className="d-flex align-items-center gap-2">
+                    <i className="fa-solid fa-pen-to-square" style={{ color: "#2a5d49" }}></i>
+                    <h2 className="h5 fw-bold mb-0" style={{ color: "#1b4332" }}>Edit User</h2>
+                  </div>
+                  <button type="button" className="btn btn-sm btn-outline-secondary" onClick={closeEditUserModal}>
+                    <i className="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+                <form onSubmit={(e) => { void onUpdateUser(e); }}>
+                  <div className="row g-3">
+                    <div className="col-md-6">
+                      <label className="form-label">Full Name</label>
+                      <input
+                        className="form-control"
+                        required
+                        value={editForm.fullName}
+                        onChange={(event) => setEditForm((prev) => ({ ...prev, fullName: event.target.value }))}
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label">Email</label>
+                      <input
+                        type="email"
+                        className="form-control"
+                        required
+                        value={editForm.email}
+                        onChange={(event) => setEditForm((prev) => ({ ...prev, email: event.target.value }))}
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label">Phone Number</label>
+                      <input
+                        className="form-control"
+                        required
+                        value={editForm.phoneNumber}
+                        onChange={(event) => setEditForm((prev) => ({ ...prev, phoneNumber: event.target.value }))}
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <label className="form-label">New Password</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="Leave blank to keep current"
+                        minLength={6}
+                        value={editForm.password}
+                        onChange={(event) => setEditForm((prev) => ({ ...prev, password: event.target.value }))}
+                      />
+                    </div>
+                    <div className="col-12 mt-4">
+                      <button className="btn btn-success px-4" type="submit" disabled={isEditingUser}>
+                        <i className="fa-solid fa-floppy-disk me-2"></i>
+                        {isEditingUser ? "Saving..." : "Save Changes"}
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="row g-3 mb-4">
         {statCounters.map((counter) => (
           <div className="col-6 col-xl-3" key={counter.label}>
@@ -520,14 +726,15 @@ function UsersContent({ sessionUser }: { sessionUser: SessionUser }) {
           <table className="table align-middle mb-0">
             <thead className="table-light">
               <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Phone</th>
+                <th>User Info</th>
+                <th className="d-none d-lg-table-cell">Email</th>
+                <th className="d-none d-md-table-cell">Phone</th>
                 <th>Role</th>
-                <th>Verification</th>
-                <th>Assigned Categories</th>
-                <th>Registered</th>
-                <th>Actions</th>
+                <th>Status</th>
+                <th className="d-none d-sm-table-cell">Verification</th>
+                <th className="d-none d-xl-table-cell">Assigned Categories</th>
+                <th className="d-none d-lg-table-cell">Registered</th>
+                <th className="text-end">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -546,13 +753,29 @@ function UsersContent({ sessionUser }: { sessionUser: SessionUser }) {
               ) : (
                 filteredUsers.map((user) => (
                   <tr key={user.id}>
-                    <td className="fw-semibold">{user.fullName}</td>
-                    <td>{user.email}</td>
-                    <td>{user.phoneNumber}</td>
+                    <td>
+                      <div className="fw-bold text-brand-dark">{user.fullName}</div>
+                      <div className="d-lg-none small text-muted">{user.email}</div>
+                      <div className="d-md-none small text-muted">{user.phoneNumber}</div>
+                    </td>
+                    <td className="d-none d-lg-table-cell">{user.email}</td>
+                    <td className="d-none d-md-table-cell">{user.phoneNumber}</td>
                     <td>
                       <span className="badge text-bg-light border text-capitalize">{user.role}</span>
                     </td>
                     <td>
+                      <div className="form-check form-switch p-0 m-0 d-flex justify-content-center">
+                        <input
+                          className="form-check-input ms-0"
+                          type="checkbox"
+                          role="switch"
+                          checked={user.isActive}
+                          onChange={() => setTogglingUser(user)}
+                          style={{ cursor: "pointer", width: "2.5em", height: "1.25em" }}
+                        />
+                      </div>
+                    </td>
+                    <td className="d-none d-sm-table-cell">
                       {user.role === "seller" ? (
                         <span className={`badge text-capitalize ${verificationBadgeClass(user.verificationStatus)}`}>
                           {user.verificationStatus}
@@ -561,35 +784,44 @@ function UsersContent({ sessionUser }: { sessionUser: SessionUser }) {
                         <span className="text-muted">N/A</span>
                       )}
                     </td>
-                    <td>
+                    <td className="d-none d-xl-table-cell">
                       {user.role !== "seller" ? (
                         <span className="text-muted">-</span>
                       ) : user.assignedCategoryIds.length ? (
-                        <div className="d-flex flex-wrap gap-1">
-                          {user.assignedCategoryIds.map((categoryId) => (
-                            <span key={categoryId} className="badge text-bg-success-subtle border text-dark">
-                              {categoryNameById[categoryId] || "Unknown"}
+                        <div className="d-flex flex-wrap gap-1" style={{ maxWidth: "200px" }}>
+                          {user.assignedCategoryIds.slice(0, 3).map((categoryId) => (
+                            <span key={categoryId} className="badge text-bg-success-subtle border text-dark smaller">
+                              {categoryNameById[categoryId] || "..."}
                             </span>
                           ))}
+                          {user.assignedCategoryIds.length > 3 && (
+                            <span className="badge text-bg-secondary-subtle border text-dark smaller">+{user.assignedCategoryIds.length - 3}</span>
+                          )}
                         </div>
                       ) : (
-                        <span className="text-muted">No categories assigned</span>
+                        <span className="text-muted small">None</span>
                       )}
                     </td>
-                    <td>{new Date(user.createdAt).toLocaleDateString()}</td>
+                    <td className="d-none d-lg-table-cell text-muted small">{new Date(user.createdAt).toLocaleDateString()}</td>
                     <td>
-                      {user.role === "seller" ? (
-                        <div className="d-flex flex-wrap gap-2">
-                          <button className="btn btn-sm btn-outline-success" onClick={() => openAssignModal(user)}>
-                            <i className="fa-solid fa-tags me-1"></i>Assign
-                          </button>
-                          <button className="btn btn-sm btn-outline-primary" onClick={() => openSellerProfileModal(user)}>
-                            <i className="fa-solid fa-eye me-1"></i>Profile
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-muted small">N/A</span>
-                      )}
+                      <div className="d-flex justify-content-end gap-2 text-nowrap">
+                        <button className="btn btn-sm btn-outline-primary action-btn" onClick={() => openEditUserModal(user)} title="Edit">
+                          <i className="fa-solid fa-pen-to-square"></i><span className="d-none d-xl-inline ms-1">Edit</span>
+                        </button>
+                        {user.role === "seller" && (
+                          <>
+                            <button className="btn btn-sm btn-outline-success action-btn" onClick={() => openAssignModal(user)} title="Assign">
+                              <i className="fa-solid fa-tags"></i><span className="d-none d-xl-inline ms-1">Assign</span>
+                            </button>
+                            <button className="btn btn-sm btn-outline-primary action-btn" onClick={() => openSellerProfileModal(user)} title="Profile">
+                              <i className="fa-solid fa-eye"></i><span className="d-none d-xl-inline ms-1">Profile</span>
+                            </button>
+                          </>
+                        )}
+                        <button className="btn btn-sm btn-outline-danger action-btn" onClick={() => openDeleteUserModal(user)} title="Delete">
+                          <i className="fa-solid fa-trash-can"></i><span className="d-none d-xl-inline ms-1">Delete</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -597,6 +829,63 @@ function UsersContent({ sessionUser }: { sessionUser: SessionUser }) {
             </tbody>
           </table>
         </div>
+      </section>
+
+      {/* Mobile Card View */}
+      <section className="d-md-none mb-4">
+        {filteredUsers.map((user) => (
+          <div key={user.id} className="card border shadow-sm rounded-4 p-3 mb-3 bg-white border-start border-4" style={{ borderLeftColor: user.role === 'admin' ? '#1b4332' : user.role === 'seller' ? '#2a5d49' : '#e4f1eb' }}>
+            <div className="d-flex justify-content-between align-items-start mb-2">
+              <div>
+                <h4 className="h6 fw-bold mb-0">{user.fullName}</h4>
+                <div className="small text-muted">{user.email}</div>
+              </div>
+              <span className="badge text-bg-light border text-capitalize">{user.role}</span>
+            </div>
+            
+            <div className="row g-2 mb-3">
+              <div className="col-6">
+                <small className="text-muted d-block smaller text-uppercase fw-bold">Phone</small>
+                <span className="small">{user.phoneNumber || 'N/A'}</span>
+              </div>
+              <div className="col-6">
+                <small className="text-muted d-block smaller text-uppercase fw-bold">Status</small>
+                {user.role === "seller" ? (
+                  <span className={`badge smaller text-capitalize ${verificationBadgeClass(user.verificationStatus)}`}>
+                    {user.verificationStatus}
+                  </span>
+                ) : (
+                  <span className="small text-muted">N/A</span>
+                )}
+              </div>
+            </div>
+
+            <div className="d-flex gap-2 border-top pt-3">
+              <button className="btn btn-sm btn-outline-primary flex-fill" onClick={() => openEditUserModal(user)}>
+                <i className="fa-solid fa-pen-to-square me-1"></i>Edit
+              </button>
+              {user.role === "seller" && (
+                <>
+                  <button className="btn btn-sm btn-outline-success flex-fill" onClick={() => openAssignModal(user)}>
+                    <i className="fa-solid fa-tags me-1"></i>Assign
+                  </button>
+                  <button className="btn btn-sm btn-outline-primary flex-fill" onClick={() => openSellerProfileModal(user)}>
+                    <i className="fa-solid fa-eye me-1"></i>Profile
+                  </button>
+                </>
+              )}
+              <button className="btn btn-sm btn-outline-danger flex-fill" onClick={() => openDeleteUserModal(user)}>
+                <i className="fa-solid fa-trash-can me-1"></i>Delete
+              </button>
+            </div>
+          </div>
+        ))}
+        {filteredUsers.length === 0 && !isLoading && (
+          <div className="text-center py-5 bg-white rounded-4 border shadow-sm">
+            <i className="fa-regular fa-folder-open text-muted d-block fs-2 mb-2 opacity-50"></i>
+            <span className="text-muted">No users found.</span>
+          </div>
+        )}
       </section>
 
       {
@@ -846,6 +1135,77 @@ function UsersContent({ sessionUser }: { sessionUser: SessionUser }) {
           </div>
         )
       }
+
+      {deletingUser && (
+        <div className="modal-backdrop-modern">
+          <div className="position-relative w-100 h-100 d-flex justify-content-center align-items-center p-3">
+            <div
+              className="position-absolute top-0 start-0 w-100 h-100"
+              onClick={closeDeleteUserModal}
+            ></div>
+            <div className="modal-card-modern card border-0 shadow-lg rounded-4 w-100" style={{ maxWidth: 450 }}>
+              <div className="card-body p-4 text-center">
+                <div className="mb-4">
+                  <div className="mx-auto d-flex align-items-center justify-content-center rounded-circle bg-danger bg-opacity-10 text-danger mb-3" style={{ width: 64, height: 64 }}>
+                    <i className="fa-solid fa-triangle-exclamation fs-2"></i>
+                  </div>
+                  <h3 className="h5 fw-bold mb-2">Confirm Delete</h3>
+                  <p className="text-muted mb-0">
+                    Are you sure you want to delete <strong>{deletingUser.fullName}</strong>?
+                    <br />
+                    <small className="text-danger mt-2 d-inline-block">This will also delete all their listings and requirements. This action cannot be undone.</small>
+                  </p>
+                </div>
+
+                <div className="d-flex gap-2 justify-content-center">
+                  <button className="btn btn-light px-4" onClick={closeDeleteUserModal} disabled={isDeleting}>
+                    Cancel
+                  </button>
+                  <button className="btn btn-danger px-4" onClick={() => { void handleDeleteUser(); }} disabled={isDeleting}>
+                    {isDeleting ? "Deleting..." : "Confirm Delete"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {togglingUser && (
+        <div className="modal-backdrop-modern">
+          <div className="position-relative w-100 h-100 d-flex justify-content-center align-items-center p-3">
+            <div
+              className="position-absolute top-0 start-0 w-100 h-100"
+              onClick={() => setTogglingUser(null)}
+            ></div>
+            <div className="modal-card-modern card border-0 shadow-lg rounded-4 w-100" style={{ maxWidth: 450 }}>
+              <div className="card-body p-4 text-center">
+                <div className="mb-4">
+                  <div className={`mx-auto d-flex align-items-center justify-content-center rounded-circle mb-3 ${togglingUser.isActive ? 'bg-warning bg-opacity-10 text-warning' : 'bg-success bg-opacity-10 text-success'}`} style={{ width: 64, height: 64 }}>
+                    <i className={`fa-solid ${togglingUser.isActive ? 'fa-user-slash' : 'fa-user-check'} fs-2`}></i>
+                  </div>
+                  <h3 className="h5 fw-bold mb-2">{togglingUser.isActive ? "Disable User?" : "Enable User?"}</h3>
+                  <p className="text-muted mb-0">
+                    Are you sure you want to <strong>{togglingUser.isActive ? "disable" : "enable"}</strong> account for <strong>{togglingUser.fullName}</strong>?
+                    {togglingUser.isActive && (
+                      <><br /><small className="text-danger mt-2 d-inline-block">They will be unable to log in until re-enabled.</small></>
+                    )}
+                  </p>
+                </div>
+
+                <div className="d-flex gap-2 justify-content-center">
+                  <button className="btn btn-light px-4" onClick={() => setTogglingUser(null)} disabled={isToggling}>
+                    Cancel
+                  </button>
+                  <button className={`btn px-4 ${togglingUser.isActive ? 'btn-warning' : 'btn-success'}`} onClick={() => { void handleToggleUserStatus(); }} disabled={isToggling}>
+                    {isToggling ? "Processing..." : togglingUser.isActive ? "Confirm Disable" : "Confirm Enable"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style jsx>{`
         .section-icon-bg {

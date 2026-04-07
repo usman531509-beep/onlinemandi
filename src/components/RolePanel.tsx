@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 type UserRole = "admin" | "buyer" | "seller";
 
@@ -17,6 +17,7 @@ type SessionUser = {
 
 type Listing = {
   id: string;
+  group: string;
   title: string;
   category: string;
   city: string;
@@ -36,6 +37,7 @@ type Listing = {
 
 type Category = {
   id: string;
+  group: string;
   name: string;
   description?: string;
   subcategories?: {
@@ -74,6 +76,17 @@ type SellerProfile = {
   notes: string;
   submittedAt: string | null;
   documents: SellerProfileDocument[];
+};
+
+type Stats = {
+  liveListings?: number;
+  totalRequests?: number;
+  myRequirements?: number;
+  globalListings?: number;
+  freeListingLimit?: number;
+  freeListingsUsed?: number;
+  paidListingsUsed?: number;
+  paidListingLimit?: number;
 };
 
 type RolePanelProps = {
@@ -116,9 +129,10 @@ type PaymentTransaction = {
   paymentDate: string;
 };
 
-type PanelTab = "overview" | "listings" | "profile" | "categories" | "broadcastings" | "payments";
+type PanelTab = "overview" | "listings" | "profile" | "categories" | "broadcastings" | "payments" | "settings";
 
 const initialListingForm = {
+  group: "",
   title: "",
   category: "",
   subcategory: "",
@@ -187,6 +201,7 @@ function filesToDataUrls(files: File[]) {
 export default function RolePanel({ role, title, subtitle, cards }: RolePanelProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [sessionUser, setSessionUser] = useState<SessionUser | null>(null);
   const [isSessionReady, setIsSessionReady] = useState(false);
 
@@ -228,6 +243,53 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
   const [idFront, setIdFront] = useState<string | null>(null);
   const [idBack, setIdBack] = useState<string | null>(null);
   const [isUploadingId, setIsUploadingId] = useState({ front: false, back: false });
+  const [stats, setStats] = useState<Stats | null>(null);
+
+  const formatCNIC = (val: string) => {
+    const digits = val.replace(/\D/g, "").slice(0, 13);
+    let formatted = "";
+    for (let i = 0; i < digits.length; i++) {
+      if (i === 5 || i === 12) formatted += "-";
+      formatted += digits[i];
+    }
+    return formatted;
+  };
+
+  const formatPhone = (val: string) => {
+    const digits = val.replace(/\D/g, "").slice(0, 11);
+    let formatted = "";
+    for (let i = 0; i < digits.length; i++) {
+      if (i === 4) formatted += "-";
+      formatted += digits[i];
+    }
+    return formatted;
+  };
+
+  const loadStats = useCallback(async () => {
+    if (!sessionUser) return;
+    try {
+      const response = await fetch(`/api/dashboard/stats?role=${role}&userId=${sessionUser.id}`, { cache: "no-store" });
+      const data = await response.json();
+      if (data.ok) {
+        setStats(data.stats);
+      }
+    } catch (err) {
+      console.error("Failed to fetch dashboard stats:", err);
+    }
+  }, [role, sessionUser]);
+
+  const loadActiveSubscription = useCallback(async () => {
+    if (!sessionUser?.email) return;
+    try {
+      const response = await fetch(`/api/user/subscription?email=${encodeURIComponent(sessionUser.email)}`, { cache: "no-store" });
+      const data = await response.json();
+      if (data.ok) {
+        setActiveSubscription(data.subscription);
+      }
+    } catch {
+      // keep current subscription state if refresh fails
+    }
+  }, [sessionUser]);
 
   const [broadcasts, setBroadcasts] = useState<BroadcastItem[]>([]);
   const [isLoadingBroadcasts, setIsLoadingBroadcasts] = useState(false);
@@ -257,8 +319,9 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeSubscription, setActiveSubscription] = useState<any>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [listingCount, setListingCount] = useState(0);
   const [broadcastCount, setBroadcastCount] = useState(0);
+  const [showSubscriptionSuccess, setShowSubscriptionSuccess] = useState(false);
+  const [showSubscriptionCanceled, setShowSubscriptionCanceled] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmModalConfig, setConfirmModalConfig] = useState<{
     title: string;
@@ -314,6 +377,55 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
       return;
     }
   }, [pathname, role]);
+
+  const [groupOptions, setGroupOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    const sub = listingForm.subcategory;
+    const child = listingForm.childCategory;
+    const cat = listingForm.category;
+    let newTitle = "";
+    if (sub && child) newTitle = `${sub} - ${child}`;
+    else if (sub) newTitle = sub;
+    else if (cat) newTitle = cat;
+    
+    if (newTitle && listingForm.title !== newTitle) {
+      setListingForm(prev => ({ ...prev, title: newTitle }));
+    }
+  }, [listingForm.category, listingForm.subcategory, listingForm.childCategory]);
+
+  useEffect(() => {
+    const sub = editForm.subcategory;
+    const child = editForm.childCategory;
+    const cat = editForm.category;
+    let newTitle = "";
+    if (sub && child) newTitle = `${sub} - ${child}`;
+    else if (sub) newTitle = sub;
+    else if (cat) newTitle = cat;
+
+    if (newTitle && editForm.title !== newTitle) {
+      setEditForm(prev => ({ ...prev, title: newTitle }));
+    }
+  }, [editForm.category, editForm.subcategory, editForm.childCategory]);
+
+  const loadGroups = useCallback(async () => {
+    if (!sessionUser || !hasAccess) return;
+    try {
+      const response = await fetch(`/api/groups?userId=${encodeURIComponent(sessionUser.id)}&role=${encodeURIComponent(sessionUser.role)}`, { cache: "no-store" });
+      const data = (await response.json()) as { ok: boolean; groups?: { id: string; name: string }[] };
+      if (data.ok && data.groups) {
+        setGroupOptions(data.groups.map(g => g.name));
+      }
+    } catch {
+      // silently handle
+    }
+  }, [sessionUser, hasAccess]);
+
+  const getCategoryOptions = (groupName: string) => {
+    return categories
+      .filter((category) => (category.group || "Crops").toLowerCase() === groupName.toLowerCase())
+      .map((category) => category.name);
+  };
 
   const categoryOptions = useMemo(() => {
     return categories.map((category) => category.name);
@@ -374,21 +486,28 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
   };
 
   useEffect(() => {
-    if (!categoryOptions.length) return;
+    if (!groupOptions.length) return;
 
     setListingForm((prev) => {
-      if (categoryOptions.includes(prev.category)) return prev;
-      return { ...prev, category: categoryOptions[0], subcategory: "", childCategory: "" };
+      const g = prev.group || (groupOptions.length > 0 ? groupOptions[0] : "");
+      const validCategories = getCategoryOptions(g);
+      if (validCategories.includes(prev.category)) return { ...prev, group: g };
+      return { ...prev, group: g, category: validCategories[0] || "", subcategory: "", childCategory: "" };
     });
 
     setEditForm((prev) => {
-      if (categoryOptions.includes(prev.category)) return prev;
-      return { ...prev, category: categoryOptions[0], subcategory: "", childCategory: "" };
+      if (!prev.group && groupOptions.length > 0) return { ...prev, group: groupOptions[0] };
+      if (!prev.group) return prev;
+      const validCategories = getCategoryOptions(prev.group);
+      if (validCategories.includes(prev.category)) return prev;
+      return { ...prev, category: validCategories[0] || "", subcategory: "", childCategory: "" };
     });
-  }, [categoryOptions]);
+  }, [groupOptions, categories]);
+
 
   useEffect(() => {
-    const raw = localStorage.getItem("mandi:sessionUser");
+    const pendingBroadcast = localStorage.getItem("mundi:pendingBroadcast");
+    const raw = localStorage.getItem("mundi:sessionUser");
     if (!raw) {
       setIsSessionReady(true);
       return;
@@ -397,7 +516,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
     try {
       setSessionUser(JSON.parse(raw) as SessionUser);
     } catch {
-      localStorage.removeItem("mandi:sessionUser");
+      localStorage.removeItem("mundi:sessionUser");
     } finally {
       setIsSessionReady(true);
     }
@@ -560,9 +679,14 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
   }, [sessionUser]);
 
   useEffect(() => {
+    if (activeTab === "overview" || activeTab === "listings" || activeTab === "broadcastings") {
+      void loadStats();
+    }
+
     if (activeTab === "listings") {
       void loadListings();
       void loadCategories();
+      void loadGroups();
     }
 
     if (activeTab === "profile" && role === "seller") {
@@ -572,6 +696,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
     // Load categories for broadcastings and category management
     if ((activeTab === "broadcastings" || activeTab === "categories") && (canManageCategories || true)) {
       void loadCategories();
+      void loadGroups();
     }
 
     if (activeTab === "broadcastings") {
@@ -586,16 +711,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
   // Dedicated useEffect for subscription and usage info
   useEffect(() => {
     if (isSessionReady && sessionUser?.email) {
-      fetch(`/api/user/subscription?email=${encodeURIComponent(sessionUser.email)}`)
-        .then(r => r.json())
-        .then(data => { if (data.ok) setActiveSubscription(data.subscription); })
-        .catch(() => { });
-
-      // Load usage counts
-      fetch(`/api/listings?role=${sessionUser.role}&userId=${sessionUser.id}`)
-        .then(r => r.json())
-        .then(data => { if (data.ok) setListingCount(data.listings?.length || 0); })
-        .catch(() => { });
+      void loadActiveSubscription();
 
       if (role === "buyer") {
         fetch(`/api/broadcasts?userId=${sessionUser.id}`)
@@ -604,7 +720,29 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
           .catch(() => { });
       }
     }
-  }, [isSessionReady, sessionUser, role]);
+  }, [isSessionReady, sessionUser, role, loadActiveSubscription]);
+
+  useEffect(() => {
+    const success = searchParams?.get("success");
+    const canceled = searchParams?.get("canceled");
+
+    if (success === "true") {
+      setShowSubscriptionSuccess(true);
+      void loadActiveSubscription();
+      void loadStats();
+      // Clean the URL to avoid re-triggering
+      const newUrl = pathname;
+      window.history.replaceState({ ...window.history.state }, "", newUrl);
+      setTimeout(() => setShowSubscriptionSuccess(false), 8000);
+    }
+
+    if (canceled === "true") {
+      setShowSubscriptionCanceled(true);
+      const newUrl = pathname;
+      window.history.replaceState({ ...window.history.state }, "", newUrl);
+      setTimeout(() => setShowSubscriptionCanceled(false), 5000);
+    }
+  }, [searchParams, pathname, loadActiveSubscription, loadStats]);
 
   const onCreateListingImagesChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
@@ -750,6 +888,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
         body: JSON.stringify({
           userId: sessionUser.id,
           role: sessionUser.role,
+          group: listingForm.group,
           title: listingForm.title,
           category: listingForm.childCategory || listingForm.subcategory || listingForm.category,
           city: listingForm.city,
@@ -776,6 +915,8 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
       setListingsMessage("Listing created successfully.");
       setShowCreateListingModal(false);
       await loadListings();
+      await loadStats();
+      await loadActiveSubscription();
     } catch {
       setListingsMessage("Network error while creating listing.");
     } finally {
@@ -927,6 +1068,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
 
     setEditingListingId(listing.id);
     setEditForm({
+      group: listing.group || "General",
       title: listing.title,
       category: hierarchy.category,
       subcategory: hierarchy.sub,
@@ -962,6 +1104,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
         body: JSON.stringify({
           userId: sessionUser.id,
           role: sessionUser.role,
+          group: editForm.group,
           title: editForm.title,
           category: editForm.childCategory || editForm.subcategory || editForm.category,
           city: editForm.city,
@@ -1013,6 +1156,8 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
           }
           setListingsMessage("Listing deleted successfully.");
           await loadListings();
+          await loadStats();
+          await loadActiveSubscription();
         } catch {
           setListingsMessage("Network error while deleting listing.");
         }
@@ -1047,6 +1192,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
         : [
           { id: "overview", label: "System Overview", icon: "fa-solid fa-server", href: "/admin/panel" },
           { id: "categories", label: "Manage Categories", icon: "fa-solid fa-layer-group", href: "/admin/panel/categories" },
+          { id: "settings", label: "System Settings", icon: "fa-solid fa-gear", href: "/admin/panel/settings" },
         ];
 
   return (
@@ -1130,20 +1276,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                   <span className="role-pill text-capitalize">{sessionUser.role}</span>
                 </div>
 
-                <div className="p-4 pt-3 d-grid gap-2 sidebar-actions">
-                  <Link href="/" className="btn btn-outline-secondary">
-                    Back Home
-                  </Link>
-                  <button
-                    className="btn btn-danger"
-                    onClick={() => {
-                      localStorage.removeItem("mandi:sessionUser");
-                      window.location.href = "/auth";
-                    }}
-                  >
-                    <i className="fa-solid fa-arrow-right-from-bracket me-2"></i>Logout
-                  </button>
-                </div>
+                {/* Sidebar actions moved to topbar */}
               </aside>
             </div>
 
@@ -1173,13 +1306,58 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                                 : "Categories"}
                     </span>
                   </div>
-                  <div className="d-flex align-items-center gap-3 small text-muted">
-                    <i className="fa-solid fa-rotate-right d-none d-md-inline"></i>
-                    <span className="d-none d-sm-inline">{sessionUser.fullName}</span>
-                    <span className="fw-semibold text-capitalize bg-light px-2 py-1 rounded-2 border">{sessionUser.role}</span>
+                  <div className="d-flex align-items-center gap-3">
+                    <div className="d-none d-md-flex align-items-center gap-2 text-muted small">
+                      <span className="d-none d-sm-inline">{sessionUser.fullName}</span>
+                      <span className="fw-semibold text-capitalize bg-light px-2 py-1 rounded-2 border" style={{ fontSize: '0.75rem' }}>{sessionUser.role}</span>
+                    </div>
+                    <div className="d-flex align-items-center gap-2 ms-2">
+                        <Link href="/" className="btn btn-sm btn-outline-success border-0 fw-bold d-flex align-items-center gap-1">
+                            <i className="fa-solid fa-house"></i>
+                            <span className="d-none d-sm-inline">Home</span>
+                        </Link>
+                        <button
+                            className="btn btn-sm btn-outline-danger border-0 d-flex align-items-center gap-1"
+                            title="Logout"
+                            onClick={() => {
+                                localStorage.removeItem("mundi:sessionUser");
+                                window.location.href = "/auth";
+                            }}
+                        ><span className="d-none d-sm-inline fw-bold">Logout</span>
+                            <i className="fa-solid fa-arrow-right-from-bracket"></i>
+                        </button>
+                    </div>
                   </div>
                 </div>
               </header>
+              
+              <div className="container-fluid px-0">
+                {showSubscriptionSuccess && (
+                  <div className="alert alert-success alert-dismissible fade show border-0 shadow-sm rounded-4 mb-4 p-4 d-flex align-items-center" role="alert" style={{ background: 'linear-gradient(135deg, #e7f9ef 0%, #d8f0e3 100%)', color: '#1b4332' }}>
+                    <div className="bg-success bg-opacity-10 p-3 rounded-circle me-3 d-flex align-items-center justify-content-center" style={{ width: '56px', height: '56px' }}>
+                      <i className="fa-solid fa-crown text-success fs-4"></i>
+                    </div>
+                    <div className="flex-grow-1">
+                      <h5 className="alert-heading fw-bold mb-1">Subscription Activated!</h5>
+                      <p className="mb-0 small opacity-75">Thank you for subscribing to OnlineMundi. Your account features have been upgraded successfully.</p>
+                    </div>
+                    <button type="button" className="btn-close" onClick={() => setShowSubscriptionSuccess(false)} aria-label="Close"></button>
+                  </div>
+                )}
+
+                {showSubscriptionCanceled && (
+                  <div className="alert alert-warning alert-dismissible fade show border-0 shadow-sm rounded-4 mb-4 p-4 d-flex align-items-center" role="alert" style={{ background: 'linear-gradient(135deg, #fff8e6 0%, #ffefcc 100%)', color: '#856404' }}>
+                    <div className="bg-warning bg-opacity-10 p-3 rounded-circle me-3 d-flex align-items-center justify-content-center" style={{ width: '56px', height: '56px' }}>
+                      <i className="fa-solid fa-circle-exclamation text-warning fs-4"></i>
+                    </div>
+                    <div className="flex-grow-1">
+                      <h5 className="alert-heading fw-bold mb-1">Payment Canceled</h5>
+                      <p className="mb-0 small opacity-75">The checkout process was canceled. No charges were made to your account.</p>
+                    </div>
+                    <button type="button" className="btn-close" onClick={() => setShowSubscriptionCanceled(false)} aria-label="Close"></button>
+                  </div>
+                )}
+              </div>
 
               {activeTab === "overview" ? (
                 <>
@@ -1187,7 +1365,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                     <div className="hero-decoration"></div>
                     <div className="position-relative">
                       <p className="mb-2 small text-uppercase hero-subtitle">
-                        <i className="fa-solid fa-gauge-high me-2"></i>OnlineMandi {role} panel
+                        <i className="fa-solid fa-gauge-high me-2"></i>OnlineMundi {role} panel
                       </p>
                       <h1 className="display-6 fw-bold mb-2">{title}</h1>
                       <p className="mb-0 hero-text">{subtitle}</p>
@@ -1223,16 +1401,35 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                   </section>
 
                   <div className="row g-3">
-                    {cards.map((card) => (
-                      <div className="col-md-4" key={card.label}>
-                        <div className={`card border-0 shadow-sm h-100 stat-card ${card.className}`}>
-                          <div className="card-body">
-                            <p className="small text-uppercase opacity-75 mb-2">{card.label}</p>
-                            <h3 className="display-6 fw-bold mb-0">{card.value}</h3>
+                    {(() => {
+                      const displayCards = [...cards];
+                      if (stats) {
+                        if (role === "seller") {
+                          displayCards[0] = { label: "Live Listings", value: String(stats.liveListings || 0), className: "stat-soft-green" };
+                          displayCards[1] = { label: "My Applications", value: String(stats.totalRequests || 0), className: "stat-soft-blue" };
+                          displayCards[2] = { 
+                            label: "Free Listing Used", 
+                            value: `${stats.freeListingsUsed || 0} / ${stats.freeListingLimit || 5}`, 
+                            className: "stat-soft-slate" 
+                          };
+                        } else if (role === "buyer") {
+                          displayCards[0] = { label: "My Requirements", value: String(stats.myRequirements || 0), className: "stat-soft-green" };
+                          displayCards[1] = { label: "Total Marketplace", value: String(stats.globalListings || 0), className: "stat-soft-blue" };
+                          // No third card for buyer for now, or keep placeholder
+                        }
+                      }
+                      
+                      return displayCards.map((card, idx) => (
+                        <div className="col-md-4" key={card.label + idx}>
+                          <div className={`card border-0 shadow-sm h-100 stat-card ${card.className}`}>
+                            <div className="card-body">
+                              <p className="small text-uppercase opacity-75 mb-2">{card.label}</p>
+                              <h3 className="display-6 fw-bold mb-0">{card.value}</h3>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      ));
+                    })()}
                   </div>
 
                   {/* Current Plan Card */}
@@ -1242,6 +1439,12 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                     </h2>
                     {activeSubscription ? (
                       <div>
+                        {(() => {
+                          const paidListingsUsed = activeSubscription?.listingsUsedCount ?? stats?.paidListingsUsed ?? 0;
+                          const paidListingLimit = activeSubscription?.planId?.listingLimit ?? stats?.paidListingLimit ?? 10;
+                          const paidUsagePercent = paidListingLimit > 0 ? Math.min((paidListingsUsed / paidListingLimit) * 100, 100) : 0;
+                          return (
+                            <>
                         <div className="d-flex align-items-center gap-3 mb-3 flex-wrap">
                           <span className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-3 py-2 fs-6">
                             <i className="fa-solid fa-circle-check me-2"></i>
@@ -1262,12 +1465,12 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                               <div className="border rounded-3 p-3">
                                 <div className="d-flex justify-content-between align-items-center mb-2">
                                   <span className="small fw-semibold"><i className="fa-solid fa-list me-2 text-success"></i>Listings</span>
-                                  <span className="small fw-bold">{listingCount} / {activeSubscription.planId?.listingLimit ?? 10}</span>
+                                  <span className="small fw-bold">{paidListingsUsed} / {paidListingLimit}</span>
                                 </div>
                                 <div className="progress" style={{ height: '6px' }}>
                                   <div
                                     className="progress-bar bg-success"
-                                    style={{ width: `${Math.min((listingCount / (activeSubscription.planId?.listingLimit || 10)) * 100, 100)}%` }}
+                                    style={{ width: `${paidUsagePercent}%` }}
                                   ></div>
                                 </div>
                               </div>
@@ -1290,6 +1493,9 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                             </div>
                           )}
                         </div>
+                            </>
+                          );
+                        })()}
                       </div>
                     ) : (
                       <div className="text-center py-3">
@@ -1320,7 +1526,13 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                       <div className="d-flex gap-2 flex-wrap">
                         {canCreateListing && (
                           <button className="btn btn-success" onClick={() => {
-                            if (activeSubscription || role === "admin") {
+                            const freeLimit = stats?.freeListingLimit !== undefined ? stats.freeListingLimit : 5;
+                            const planLimit = activeSubscription?.planId?.listingLimit;
+                            const freeUsed = stats?.freeListingsUsed || 0;
+                            const paidUsed = stats?.paidListingsUsed || 0;
+                            const hasPaidCapacity = !!activeSubscription && paidUsed < (planLimit || 0);
+                            const hasFreeCapacity = freeUsed < freeLimit;
+                            if (role === "admin" || hasPaidCapacity || hasFreeCapacity) {
                               setShowCreateListingModal(true);
                             } else {
                               setShowUpgradeModal(true);
@@ -1349,17 +1561,29 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                               <i className="fa-solid fa-xmark"></i>
                             </button>
                           </div>
-                          <form onSubmit={onCreateListing}>
-                            <div className="row g-3">
-                              <div className="col-md-6">
-                                <label className="form-label">Title</label>
-                                <input
-                                  className="form-control"
-                                  required
-                                  placeholder="e.g. 200 Tons Basmati Rice"
-                                  value={listingForm.title}
-                                  onChange={(event) => setListingForm((prev) => ({ ...prev, title: event.target.value }))}
-                                />
+                              <form onSubmit={onCreateListing}>
+                                <div className="row g-3">
+                                  {/* Title is auto-generated */}
+                                  <div className="col-md-6">
+                                <label className="form-label">Group</label>
+                                <select
+                                  className="form-select"
+                                  value={listingForm.group}
+                                  onChange={(event) => {
+                                    const newGroup = event.target.value;
+                                    setListingForm((prev) => ({ 
+                                      ...prev, 
+                                      group: newGroup, 
+                                      category: "", 
+                                      subcategory: "", 
+                                      childCategory: "", 
+                                      extraInfo: [] 
+                                    }));
+                                  }}
+                                  disabled={!groupOptions.length}
+                                >
+                                  {groupOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                                </select>
                               </div>
                               <div className="col-md-4">
                                 <label className="form-label">Category</label>
@@ -1372,10 +1596,10 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                                     const extraInfo = (cat?.customFields || []).map(f => ({ label: f.label, value: "" }));
                                     setListingForm((prev) => ({ ...prev, category: catName, subcategory: "", childCategory: "", extraInfo }));
                                   }}
-                                  disabled={!categoryOptions.length}
+                                  disabled={!getCategoryOptions(listingForm.group).length}
                                 >
                                   <option value="">Select Category</option>
-                                  {categoryOptions.map((option) => <option key={option}>{option}</option>)}
+                                  {getCategoryOptions(listingForm.group).map((option) => <option key={option}>{option}</option>)}
                                 </select>
                               </div>
                               <div className="col-md-4">
@@ -1540,14 +1764,26 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                       </div>
                       <form onSubmit={onUpdateListing}>
                         <div className="row g-3">
+                          {/* Title is auto-generated */}
                           <div className="col-md-6">
-                            <label className="form-label">Title</label>
-                            <input
-                              className="form-control"
-                              required
-                              value={editForm.title}
-                              onChange={(event) => setEditForm((prev) => ({ ...prev, title: event.target.value }))}
-                            />
+                            <label className="form-label">Group</label>
+                            <select
+                              className="form-select"
+                              value={editForm.group}
+                              onChange={(event) => {
+                                const newGroup = event.target.value;
+                                setEditForm((prev) => ({ 
+                                  ...prev, 
+                                  group: newGroup, 
+                                  category: "", 
+                                  subcategory: "", 
+                                  childCategory: "" 
+                                }));
+                              }}
+                              disabled={!groupOptions.length}
+                            >
+                              {groupOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                            </select>
                           </div>
                           <div className="col-md-4">
                             <label className="form-label">Category</label>
@@ -1555,10 +1791,10 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                               className="form-select"
                               value={editForm.category}
                               onChange={(event) => setEditForm((prev) => ({ ...prev, category: event.target.value, subcategory: "", childCategory: "" }))}
-                              disabled={!categoryOptions.length}
+                              disabled={!getCategoryOptions(editForm.group).length}
                             >
                               <option value="">Select Category</option>
-                              {categoryOptions.map((option) => <option key={option}>{option}</option>)}
+                              {getCategoryOptions(editForm.group).map((option) => <option key={option}>{option}</option>)}
                             </select>
                           </div>
                           <div className="col-md-4">
@@ -1717,7 +1953,9 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                       <select className="form-select" value={listingsFilterCategory} onChange={(e) => setListingsFilterCategory(e.target.value)}>
                         <option value="all">All Categories</option>
                         {categories.map((c) => (
-                          <option key={c.name} value={c.name}>{c.name}</option>
+                          <option key={c.name} value={c.name}>
+                            {c.group ? `${c.group} > ` : ""}{c.name}
+                          </option>
                         ))}
                       </select>
                     </div>
@@ -1851,24 +2089,28 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                             }
                           />
                         </div>
-                        <div className="col-md-6">
-                          <label className="form-label">CNIC / Identity Number</label>
-                          <input
-                            className="form-control"
-                            value={profileForm.cnicNumber}
-                            onChange={(event) => setProfileForm((prev) => ({ ...prev, cnicNumber: event.target.value }))}
-                          />
-                        </div>
-                        <div className="col-md-6">
-                          <label className="form-label">Registered Mobile Number</label>
-                          <input
-                            className="form-control"
-                            value={profileForm.registeredMobileNumber}
-                            onChange={(event) =>
-                              setProfileForm((prev) => ({ ...prev, registeredMobileNumber: event.target.value }))
-                            }
-                          />
-                        </div>
+                         <div className="col-md-6">
+                           <label className="form-label">CNIC / Identity Number</label>
+                           <input
+                             className="form-control"
+                             placeholder="XXXXX-XXXXXXX-X"
+                             value={profileForm.cnicNumber}
+                             onChange={(event) =>
+                               setProfileForm((prev) => ({ ...prev, cnicNumber: formatCNIC(event.target.value) }))
+                             }
+                           />
+                         </div>
+                         <div className="col-md-6">
+                           <label className="form-label">Registered Mobile Number</label>
+                           <input
+                             className="form-control"
+                             placeholder="XXXX-XXXXXXX"
+                             value={profileForm.registeredMobileNumber}
+                             onChange={(event) =>
+                               setProfileForm((prev) => ({ ...prev, registeredMobileNumber: formatPhone(event.target.value) }))
+                             }
+                           />
+                         </div>
                         <div className="col-md-6">
                           <label className="form-label">City</label>
                           <input
@@ -2129,7 +2371,8 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                       </div>
                       {(role === "buyer" || role === "admin") && (
                         <button type="button" className="btn btn-success" onClick={() => {
-                          if (activeSubscription || role === "admin") {
+                          const limit = stats?.freeListingLimit !== undefined ? stats.freeListingLimit : 5;
+                          if (activeSubscription || role === "admin" || broadcastCount < limit) {
                             setShowBroadcastModal(true);
                           } else {
                             setShowUpgradeModal(true);
@@ -2474,6 +2717,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                       </select>
                     </div>
                     <div className="col-md-6">
+                      <span className="fw-bold text-success fs-5">Online<span className="text-dark">Mundi</span></span>
                       <label className="form-label fw-semibold">Grade <span className="text-danger">*</span></label>
                       <input
                         type="text"

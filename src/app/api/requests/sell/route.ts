@@ -10,7 +10,7 @@ export async function POST(request: Request) {
         const body = await request.json();
 
         // Basic validation for required fields
-        const required = ["cropType", "totalQuantityTons", "pricePerMaund", "district", "mobileNumber", "email"];
+        const required = ["group", "cropType", "totalQuantityTons", "pricePerMaund", "district", "mobileNumber", "email"];
         for (const field of required) {
             if (!body[field]) {
                 return NextResponse.json({ ok: false, message: `Missing required field: ${field}` }, { status: 400 });
@@ -20,7 +20,10 @@ export async function POST(request: Request) {
         await connectToDatabase();
 
         const newRequest = await SellRequest.create({
+            group: body.group,
             cropType: body.cropType,
+            subcategory: body.subcategory,
+            childCategory: body.childCategory,
             variety: body.variety,
             moistureLevel: Number(body.moistureLevel) || undefined,
             qualityGrade: body.qualityGrade,

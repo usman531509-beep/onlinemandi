@@ -48,14 +48,14 @@ export default function AboutPage() {
                 <div className="about-hero-shape"></div>
             </section>
 
-            {/* This Is OnlineMandi */}
+            {/* This Is OnlineMundi */}
             <section className="container py-5">
                 <div className="row align-items-center g-5">
                     <div className="col-lg-6 about-animate about-animate-left">
                         <div className="about-img-wrapper">
                             <Image
                                 src="/images/about-hero.png"
-                                alt="Agricultural mandi market in Pakistan"
+                                alt="Agricultural Mundi market in Pakistan"
                                 width={800}
                                 height={500}
                                 className="about-img"
@@ -64,24 +64,24 @@ export default function AboutPage() {
                         </div>
                     </div>
                     <div className="col-lg-6 about-animate about-animate-right">
-                        <h2 className="fw-bold mb-1">This Is OnlineMandi!</h2>
+                        <h2 className="fw-bold mb-1">This Is OnlineMundi!</h2>
                         <div className="about-divider"></div>
                         <p className="text-success fw-semibold fst-italic mb-3">
-                            Pakistan&apos;s Digital Mandi Trade Crops Online &amp; Grow Together
+                            Pakistan&apos;s Digital Mundi Trade Crops Online &amp; Grow Together
                         </p>
                         <p className="text-muted">
                             Agriculture is the backbone of Pakistan&apos;s economy. Yet, for decades,
-                            farmers and traders have relied on outdated methods physical mandis,
-                            middlemen, and word-of-mouth. OnlineMandi changes that.
+                            farmers and traders have relied on outdated methods — physical mundis,
+                            middlemen, and word-of-mouth. OnlineMundi changes that.
                         </p>
                         <p className="text-muted">
                             We provide a modern, easy-to-use digital marketplace where sellers can list
-                            their crops wheat, rice, corn, citrus, pulses, and more with transparent
+                            their crops — wheat, rice, corn, citrus, pulses, and more — with transparent
                             pricing, verified profiles, and direct buyer connections.
                         </p>
                         <p className="text-muted mb-0">
                             Whether you&apos;re a farmer in Punjab looking to sell 200 tons of Super Basmati,
-                            or a factory in Karachi sourcing bulk wheat OnlineMandi brings the entire
+                            or a factory in Karachi sourcing bulk wheat — OnlineMundi brings the entire
                             agricultural trade chain to your fingertips.
                         </p>
                     </div>
@@ -94,12 +94,12 @@ export default function AboutPage() {
                     <div className="about-quote">
                         <i className="fa-solid fa-quote-left about-quote-icon"></i>
                         <blockquote className="mb-3">
-                            OnlineMandi began with a simple thought <strong>How to give Pakistani farmers
+                            OnlineMundi began with a simple thought: <strong>How to give Pakistani farmers
                                 fair prices and direct market access</strong> without relying on middlemen
                             who take away their hard-earned profits.
                         </blockquote>
                         <p className="mb-0 text-muted">
-                            The OnlineMandi Team
+                            The OnlineMundi Team
                         </p>
                     </div>
                 </div>
@@ -124,7 +124,7 @@ export default function AboutPage() {
                         <h2 className="fw-bold mb-1">What We Trade</h2>
                         <div className="about-divider"></div>
                         <p className="text-muted mb-4">
-                            OnlineMandi specializes in bulk agricultural trading across
+                            OnlineMundi specializes in bulk agricultural trading across
                             Pakistan&apos;s major crop categories:
                         </p>
                         <div className="row g-3">
@@ -159,7 +159,7 @@ export default function AboutPage() {
                         {[
                             { step: "1", icon: "fa-user-plus", title: "Register", desc: "Create a free buyer or seller account in under 2 minutes." },
                             { step: "2", icon: "fa-list-check", title: "List or Browse", desc: "Sellers post crops. Buyers browse or broadcasts." },
-                            { step: "3", icon: "fa-handshake", title: "Trade Directly", desc: "Negotiate and close deals directly no middlemen involved." },
+                            { step: "3", icon: "fa-handshake", title: "Trade Directly", desc: "Negotiate and close deals directly." },
                         ].map((item, idx) => (
                             <div className="col-md-4" key={item.step}>
                                 <div className={`about-hiw-card about-animate about-animate-up`} style={{ transitionDelay: `${idx * 150}ms` }}>
@@ -179,7 +179,7 @@ export default function AboutPage() {
             {/* CTA */}
             <section className="about-cta about-animate about-animate-up">
                 <div className="container text-center">
-                    <h2 className="fw-bold mb-3" style={{ color: "#1b4332" }}>Start Trading on OnlineMandi</h2>
+                    <h2 className="fw-bold mb-3" style={{ color: "#1b4332" }}>Start Trading on OnlineMundi</h2>
                     <p className="text-muted mb-4" style={{ maxWidth: 500, margin: "0 auto" }}>
                         Join hundreds of farmers and buyers already trading smarter. It&apos;s free to get started.
                     </p>
@@ -195,7 +195,7 @@ export default function AboutPage() {
         /* ===== Hero ===== */
         .about-hero {
           position: relative;
-          background: url("/images/about-banner.jpg") center/100% 150% no-repeat;
+          background: url("/images/about-banner.jpg") center/cover no-repeat;
           padding: 100px 0 110px;
           overflow: hidden;
         }
@@ -458,7 +458,9 @@ export default function AboutPage() {
           height: 400px;
           background: radial-gradient(circle, rgba(255, 202, 40, 0.08) 0%, transparent 70%);
           border-radius: 50%;
-        }/* ===== Reduced Motion ===== */
+        }
+
+        /* ===== Reduced Motion ===== */
         @media (prefers-reduced-motion: reduce) {
           .about-hero-fade,
           .about-hero-delay-1 {

@@ -11,14 +11,14 @@ export default function Footer() {
                     <div className="col-lg-4 col-md-6">
                         <div className="footer-brand mb-3">
                             <Link href="/" className="text-decoration-none h4 fw-bold text-white">
-                                ONLINE<span className="text-warning">MANDI</span>
+                                ONLINE<span className="text-warning">MUNDI</span>
                                 <small className="ms-1" style={{ fontSize: "12px", opacity: 0.8 }}>Pakistan</small>
                             </Link>
                         </div>
                         <p className="footer-about-text mb-4">
-                            Pakistan's first dedicated digital marketplace for bulk agricultural trade.
-                            Connecting farmers directly with buyers for a transparent, efficient, and
-                            profitable future.
+                            Pakistan's most trusted digital B2B marketplace for bulk crop trade. 
+                            Connecting farmers directly with wholesalers on OnlineMundi for a transparent, 
+                            efficient, and profitable future.
                         </p>
                         <div className="social-links d-flex gap-3">
                             <a href="#" className="social-icon">
@@ -42,18 +42,14 @@ export default function Footer() {
                         <ul className="footer-links list-unstyled">
                             <li className="mb-2"><Link href="/">Home</Link></li>
                             <li className="mb-2"><Link href="/about">About Us</Link></li>
-
                         </ul>
                     </div>
 
-                    {/* Support */}
                     <div className="col-lg-2 col-md-6">
                         <h5 className="footer-heading mb-4 text-white fw-bold">Support</h5>
                         <ul className="footer-links list-unstyled">
-                            <li className="mb-2"><Link href="#">Rules & Regulations</Link></li>
-                            <li className="mb-2"><Link href="#">Privacy Policy</Link></li>
-                            <li className="mb-2"><Link href="#">Terms of Use</Link></li>
-
+                            <li className="mb-2"><Link href="/privacy">Privacy Policy</Link></li>
+                            <li className="mb-2"><Link href="/terms">Terms of Use</Link></li>
                         </ul>
                     </div>
 
@@ -82,8 +78,8 @@ export default function Footer() {
                                 <i className="fa-solid fa-envelope text-warning"></i>
                             </div>
                             <p className="mb-0 small opacity-75">
-                                support@onlinemandi.pk <br />
-                                info@onlinemandi.pk
+                                support@onlinemundi.com <br />
+                                info@onlinemundi.com
                             </p>
                         </div>
                     </div>
@@ -94,10 +90,9 @@ export default function Footer() {
                 <div className="row align-items-center py-4">
                     <div className="col-md-12">
                         <p className="footer-copyright mb-md-0 mb-3 small opacity-50 text-center">
-                            &copy; 2026 OnlineMandi Pakistan. All Rights Reserved.
+                            &copy; {new Date().getFullYear()} OnlineMundi Pakistan. All rights reserved.
                         </p>
                     </div>
-
                 </div>
             </div>
 
@@ -118,6 +113,7 @@ export default function Footer() {
           right: 0;
           height: 1px;
           background: linear-gradient(90deg, transparent, rgba(255, 202, 40, 0.3), transparent);
+          z-index: 1;
         }
 
         .footer-about-text {
@@ -193,12 +189,7 @@ export default function Footer() {
           height: 1px;
           background: rgba(255, 255, 255, 0.1);
           width: 100%;
-        }
-
-        .commission-note {
-          background: rgba(255, 202, 40, 0.1);
-          border: 1px solid rgba(255, 202, 40, 0.2);
-          color: rgba(255, 255, 255, 0.9);
+          margin-top: 40px;
         }
 
         @media (max-width: 768px) {

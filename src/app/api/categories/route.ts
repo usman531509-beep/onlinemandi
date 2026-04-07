@@ -3,12 +3,14 @@ import { NextResponse } from "next/server";
 
 import { connectToDatabase } from "@/lib/mongodb";
 import Category from "@/models/Category";
+import Group from "@/models/Group";
 import User, { UserRole } from "@/models/User";
 
 export const dynamic = "force-dynamic";
 
 type CategoryResponse = {
   id: string;
+  group: string;
   name: string;
   description: string;
   createdAt: Date;
@@ -32,6 +34,7 @@ type CategoryResponse = {
 
 function mapCategory(category: {
   _id: mongoose.Types.ObjectId;
+  group?: string;
   name: string;
   description?: string;
   createdAt: Date;
@@ -51,6 +54,7 @@ function mapCategory(category: {
 }): CategoryResponse {
   return {
     id: String(category._id),
+    group: category.group || "General",
     name: category.name,
     description: category.description || "",
     createdAt: category.createdAt,
@@ -101,19 +105,7 @@ export async function GET(request: Request) {
         return NextResponse.json({ ok: false, message: "Unauthorized user context." }, { status: 403 });
       }
 
-      if (role === "seller") {
-        const rawUser = await User.collection.findOne(
-          { _id: new mongoose.Types.ObjectId(userId) },
-          { projection: { assignedCategories: 1 } }
-        );
-        const assignedCategoryIds = Array.isArray(rawUser?.assignedCategories) ? rawUser.assignedCategories : [];
-
-        categories = await Category.find({ _id: { $in: assignedCategoryIds } })
-          .sort({ createdAt: -1 })
-          .lean();
-      } else {
-        categories = await Category.find({}).sort({ createdAt: -1 }).lean();
-      }
+      categories = await Category.find({}).sort({ createdAt: -1 }).lean();
     } else {
       categories = await Category.find({}).sort({ createdAt: -1 }).lean();
     }
@@ -136,6 +128,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as {
       userId?: string;
       role?: string;
+      group?: string;
       name?: string;
       description?: string;
       subcategories?: {
@@ -153,6 +146,7 @@ export async function POST(request: Request) {
 
     const userId = body.userId;
     const role = body.role;
+    const groupName = body.group?.trim() || "Crops";
     const name = body.name?.trim();
     const description = body.description?.trim();
     const subcategories = body.subcategories;
@@ -177,9 +171,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, message: "Unauthorized user context." }, { status: 403 });
     }
 
+    // Ensure the group exists (case-insensitive) and use its authoritative name
+    const groupExists = await Group.findOne({ name: { $regex: new RegExp(`^${groupName}$`, "i") } });
+    if (!groupExists) {
+      return NextResponse.json({ ok: false, message: `Group '${groupName}' does not exist. Please create it first.` }, { status: 400 });
+    }
+    const finalGroupName = groupExists.name; // Use the exact name from the database
+
     const exists = await Category.findOne({ name: new RegExp(`^${name}$`, "i") });
     if (exists) {
-      return NextResponse.json({ ok: false, message: "Category already exists." }, { status: 409 });
+      return NextResponse.json(
+        { ok: false, message: `Category '${name}' already exists in group '${exists.group || "Uncategorized"}'.` },
+        { status: 409 }
+      );
     }
 
     const safeSubcategories = Array.isArray(subcategories)
@@ -208,6 +212,7 @@ export async function POST(request: Request) {
       : [];
 
     const created = await Category.create({
+      group: finalGroupName,
       name,
       description,
       createdBy: user._id,

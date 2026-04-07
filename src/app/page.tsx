@@ -60,23 +60,17 @@ export default function Home() {
   useEffect(() => {
     const loadHomeData = async () => {
       try {
-        const [listingsRes, categoriesRes, plansRes] = await Promise.all([
+        const [listingsRes, categoriesRes, plansRes, settingsRes] = await Promise.all([
           fetch("/api/listings"),
           fetch("/api/categories"),
-          fetch("/api/plans")
+          fetch("/api/plans"),
+          fetch("/api/settings?key=homePageCategories", { cache: "no-store" })
         ]);
-        const listingsJson = (await listingsRes.json()) as {
-          ok: boolean;
-          listings?: Listing[];
-        };
-        const categoriesJson = (await categoriesRes.json()) as {
-          ok: boolean;
-          categories?: Category[];
-        };
-        const plansJson = (await plansRes.json()) as {
-          ok: boolean;
-          plans?: any[];
-        };
+
+        const listingsJson = await listingsRes.json();
+        const categoriesJson = await categoriesRes.json();
+        const plansJson = await plansRes.json();
+        const settingsJson = await settingsRes.json();
 
         if (listingsRes.ok && listingsJson.ok) {
           setListings(listingsJson.listings || []);
@@ -85,7 +79,12 @@ export default function Home() {
         }
 
         if (categoriesRes.ok && categoriesJson.ok) {
-          setCategories(categoriesJson.categories || []);
+          let allCats = categoriesJson.categories || [];
+          if (settingsJson.ok && settingsJson.setting?.value && settingsJson.setting.value.length > 0) {
+            const allowedIds = settingsJson.setting.value;
+            allCats = allCats.filter((cat: Category) => allowedIds.includes(cat.id));
+          }
+          setCategories(allCats);
         } else {
           setCategories([]);
         }
@@ -95,7 +94,7 @@ export default function Home() {
         } else {
           setPlans([]);
         }
-      } catch {
+      } catch (err) {
         setListings([]);
         setCategories([]);
         setPlans([]);
@@ -108,7 +107,7 @@ export default function Home() {
   // Fetch user's active subscription
   useEffect(() => {
     try {
-      const raw = localStorage.getItem("mandi:sessionUser");
+      const raw = localStorage.getItem("mundi:sessionUser");
       if (raw) {
         const user = JSON.parse(raw);
         if (user?.email) {
@@ -141,7 +140,7 @@ export default function Home() {
       let userId = "";
       let userEmail = "";
       try {
-        const raw = localStorage.getItem("mandi:sessionUser");
+        const raw = localStorage.getItem("mundi:sessionUser");
         if (raw) {
           const user = JSON.parse(raw);
           userId = user?.id || "";
@@ -232,13 +231,13 @@ export default function Home() {
           <div className="container position-relative" style={{ zIndex: 2 }}>
             <h1 className="display-4 fw-bold hero-title">Pakistan&apos;s Digital Agricultural Marketplace</h1>
             <p className="lead mb-4 hero-subtitle">
-              Trading Wheat, Rice, Corn, and Citrus in Bulk - Direct from Farm to Factory.
+              Trading Wheat, Rice, Corn, and Citrus in Bulk - Direct from Farm to your place.
             </p>
             <div className="d-grid gap-2 d-md-block hero-cta">
-              <Link className="btn btn-warning btn-lg px-5 fw-bold me-md-2" href="/post-requirement">
+              <Link className="btn btn-warning btn-lg px-5 fw-bold me-md-2" href="/mundi">
                 I Want to Buy
               </Link>
-              <Link className="btn btn-outline-light btn-lg px-5" href="/sell-crop">
+              <Link className="btn btn-outline-light btn-lg px-5" href="/auth?mode=signup&role=seller">
                 I Want to Sell
               </Link>
             </div>
@@ -268,8 +267,13 @@ export default function Home() {
         <div className="bg-white py-5" id="listing-section">
           <div className="container">
             <div className="d-flex justify-content-between align-items-center mb-4">
-              <h3 className="fw-bold m-0">Live Mandi Listings</h3>
-              <span className="text-danger fw-bold">
+              <div className="d-flex align-items-center gap-3">
+                <h3 className="fw-bold m-0">Live Mundi Listings</h3>
+                <Link href="/mundi" className="btn btn-sm btn-outline-success rounded-pill px-3">
+                  View All <i className="fa-solid fa-arrow-right ms-1 small"></i>
+                </Link>
+              </div>
+              <span className="text-danger fw-bold d-none d-md-inline-block">
                 <i className="fa-solid fa-circle-dot"></i> Live Feed
               </span>
             </div>
@@ -373,7 +377,7 @@ export default function Home() {
                         </p>
                         <h4 className="text-success fw-bold">PKR {product.pricePerMaund.toLocaleString()} /maund</h4>
                         <hr />
-                        <Link className="btn btn-mandi w-100" href={`/listing/${product.id}`}>
+                        <Link className="btn btn-mundi w-100" href={`/listing/${product.id}`}>
                           View Details
                         </Link>
                       </div>
@@ -436,7 +440,7 @@ export default function Home() {
                           </button>
                         ) : (
                           <button
-                            className="btn btn-mandi w-100 py-3 fw-bold"
+                            className="btn btn-mundi w-100 py-3 fw-bold"
                             onClick={() => handleSubscribe(plan._id)}
                             disabled={checkoutLoading === plan._id}
                           >
@@ -466,7 +470,7 @@ export default function Home() {
       <style jsx global>{`
         :root {
           --primary-green: #1b4332;
-          --mandi-gold: #ffca28;
+          --mundi-gold: #ffca28;
           --light-bg: #f8f9fa;
         }
 
@@ -486,7 +490,7 @@ export default function Home() {
         }
 
         .nav-link.active {
-          border-bottom: 2px solid var(--mandi-gold);
+          border-bottom: 2px solid var(--mundi-gold);
         }
 
         .navbar-menu {
@@ -607,187 +611,7 @@ export default function Home() {
           color: #7b8f84;
         }
 
-        .detail-main-image-wrapper {
-          position: relative;
-          cursor: pointer;
-          border-radius: 12px;
-          overflow: hidden;
-          border: 1px solid #dce7e2;
-        }
-
-        .detail-main-image {
-          width: 100%;
-          height: 400px;
-          object-fit: cover;
-          display: block;
-          transition: transform 0.3s ease;
-        }
-
-        .detail-main-image-wrapper:hover .detail-main-image {
-          transform: scale(1.02);
-        }
-
-        .detail-main-image-overlay {
-          position: absolute;
-          inset: 0;
-          background: rgba(0, 0, 0, 0.35);
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          color: white;
-          font-size: 1rem;
-          gap: 6px;
-          opacity: 0;
-          transition: opacity 0.3s ease;
-        }
-
-        .detail-main-image-overlay i {
-          font-size: 2rem;
-        }
-
-        .detail-main-image-wrapper:hover .detail-main-image-overlay {
-          opacity: 1;
-        }
-
-        .detail-thumb-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-          gap: 10px;
-        }
-
-        .detail-thumb-btn {
-          border: 2px solid transparent;
-          border-radius: 10px;
-          padding: 0;
-          background: #fff;
-          overflow: hidden;
-          line-height: 0;
-          cursor: pointer;
-          transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
-        }
-
-        .detail-thumb-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-
-        .detail-thumb-btn.active {
-          border-color: #1b4332;
-          box-shadow: 0 0 0 3px rgba(27, 67, 50, 0.2);
-        }
-
-        .detail-thumb-image {
-          width: 100%;
-          height: 80px;
-          object-fit: cover;
-          display: block;
-        }
-
-        .empty-detail-images {
-          border: 1px dashed #cddad3;
-          border-radius: 10px;
-          background: #f5faf7;
-          color: #6f8379;
-          min-height: 120px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        /* Lightbox */
-        .lightbox-overlay {
-          position: fixed;
-          inset: 0;
-          z-index: 9999;
-          background: rgba(0, 0, 0, 0.92);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          animation: lightboxFadeIn 0.25s ease;
-          outline: none;
-        }
-
-        .lightbox-close {
-          position: absolute;
-          top: 20px;
-          right: 24px;
-          background: rgba(255, 255, 255, 0.12);
-          border: none;
-          color: white;
-          font-size: 1.5rem;
-          width: 44px;
-          height: 44px;
-          border-radius: 50%;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: background 0.2s;
-          z-index: 10001;
-        }
-
-        .lightbox-close:hover {
-          background: rgba(255, 255, 255, 0.25);
-        }
-
-        .lightbox-nav {
-          position: absolute;
-          top: 50%;
-          transform: translateY(-50%);
-          background: rgba(255, 255, 255, 0.12);
-          border: none;
-          color: white;
-          font-size: 1.3rem;
-          width: 48px;
-          height: 48px;
-          border-radius: 50%;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: background 0.2s;
-          z-index: 10001;
-        }
-
-        .lightbox-prev { left: 20px; }
-        .lightbox-next { right: 20px; }
-
-        .lightbox-nav:hover {
-          background: rgba(255, 255, 255, 0.25);
-        }
-
-        .lightbox-content {
-          max-width: 90vw;
-          max-height: 85vh;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-        }
-
-        .lightbox-image {
-          max-width: 90vw;
-          max-height: 80vh;
-          width: auto !important;
-          height: auto !important;
-          object-fit: contain;
-          border-radius: 8px;
-          box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
-        }
-
-        .lightbox-counter {
-          color: rgba(255, 255, 255, 0.7);
-          font-size: 0.85rem;
-          margin-top: 12px;
-          letter-spacing: 0.05em;
-        }
-
-        @keyframes lightboxFadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-
-        .btn-mandi {
+        .btn-mundi {
           background-color: var(--primary-green);
           color: white;
           border: none;
@@ -795,121 +619,17 @@ export default function Home() {
           border-radius: 8px;
         }
 
-        .btn-mandi:hover {
-          background-color: #081c15;
-          color: white;
-        }
-
-        .verified-badge {
-          background: linear-gradient(135deg, #198754, #2d9f6f) !important;
-          color: white !important;
-          font-weight: 600;
-          font-size: 0.72rem;
-          letter-spacing: 0.02em;
-          padding: 5px 10px;
-          border-radius: 20px;
-          box-shadow: 0 2px 8px rgba(25, 135, 84, 0.25);
-          animation: verifiedPulse 2s ease-in-out infinite;
-        }
-
-        @keyframes verifiedPulse {
-          0%, 100% { box-shadow: 0 2px 8px rgba(25, 135, 84, 0.25); }
-          50% { box-shadow: 0 2px 14px rgba(25, 135, 84, 0.45); }
-        }
-
-        .whatsapp-btn {
-          position: fixed;
-          bottom: 30px;
-          right: 30px;
-          background: #25d366;
-          color: white;
-          width: 60px;
-          height: 60px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 30px;
-          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-          z-index: 999;
-        }
-
-        .hidden-section {
-          display: none;
-        }
-
-        .pricing-card {
-           transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-
-        .pricing-card:hover {
-           transform: translateY(-8px);
-           box-shadow: 0 1rem 3rem rgba(0,0,0,0.1) !important;
-        }
-
-        .product-spec-item {
-          border-bottom: 1px dashed #dee2e6;
-          padding: 10px 0;
-        }
-
-        .product-spec-item:last-child {
-          border-bottom: 0;
-        }
-
         @keyframes heroFadeUp {
+          from {
+            opacity: 0;
+            transform: translateY(22px);
+          }
           to {
             opacity: 1;
             transform: translateY(0);
           }
         }
-
-        @media (max-width: 991px) {
-          .detail-thumb-grid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-          }
-          .hero-title {
-            font-size: 2.5rem !important;
-          }
-        }
-
-        @media (max-width: 767px) {
-          .hero {
-            padding: 80px 0 60px;
-            text-align: center;
-          }
-          .hero-title {
-            font-size: 2rem !important;
-          }
-          .hero-subtitle {
-            font-size: 1.1rem !important;
-          }
-          .category-card {
-            padding: 15px 10px;
-          }
-          .category-card i {
-            font-size: 2rem !important;
-            margin-bottom: 8px;
-          }
-          .pricing-card .display-5 {
-            font-size: 2.5rem;
-          }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .hero-title,
-          .hero-subtitle,
-          .hero-cta {
-            animation: none !important;
-            opacity: 1;
-            transform: none;
-          }
-        }
       `}</style>
-
-      <Script
-        src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
-        strategy="afterInteractive"
-      />
     </>
   );
 }

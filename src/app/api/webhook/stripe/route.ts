@@ -122,6 +122,16 @@ export async function POST(req: NextRequest) {
                 if (matchingUser && planId && mongoose.isValidObjectId(planId)) {
                     const plan = await PaymentPlan.findById(planId);
                     if (plan) {
+                        const existingSubscription = await Subscription.findOne({
+                            userId: matchingUser._id,
+                            stripeSessionId: session.id,
+                        });
+
+                        if (existingSubscription) {
+                            console.log(`ℹ️ Subscription for session ${session.id} already exists. Skipping duplicate subscription create.`);
+                            break;
+                        }
+
                         // Deactivate any existing active subscription for this user
                         await Subscription.updateMany(
                             { userId: matchingUser._id, status: "active" },
@@ -134,6 +144,7 @@ export async function POST(req: NextRequest) {
                             userEmail: matchingUser.email,
                             planId: plan._id,
                             stripeSessionId: session.id,
+                            listingsUsedCount: 0,
                             status: "active",
                             startDate: now,
                             endDate: computeEndDate(plan.interval, now),
@@ -167,4 +178,3 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: false, message: error.message || "Webhook error" }, { status: 400 });
     }
 }
-

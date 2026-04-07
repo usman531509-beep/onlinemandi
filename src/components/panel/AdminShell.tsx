@@ -32,7 +32,7 @@ export default function AdminShell({ children }: AdminShellProps) {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    const raw = localStorage.getItem("mandi:sessionUser");
+    const raw = localStorage.getItem("mundi:sessionUser");
     if (!raw) {
       setIsReady(true);
       return;
@@ -56,6 +56,7 @@ export default function AdminShell({ children }: AdminShellProps) {
     if (pathname === "/admin/panel/contacts") return "Contact Inquiries";
     if (pathname === "/admin/panel/pricing") return "Pricing Plans";
     if (pathname === "/admin/panel/payments") return "Payments History";
+    if (pathname === "/admin/panel/settings") return "System Settings";
     return "Dashboard";
   }, [pathname]);
 
@@ -69,6 +70,7 @@ export default function AdminShell({ children }: AdminShellProps) {
     { href: "/admin/panel/pricing", label: "Pricing Plans", icon: "fa-tags" },
     { href: "/admin/panel/payments", label: "Payments History", icon: "fa-file-invoice-dollar" },
     { href: "/admin/panel/contacts", label: "Contact Inquiries", icon: "fa-headset" },
+    { href: "/admin/panel/settings", label: "System Settings", icon: "fa-gear" },
   ];
 
   return (
@@ -160,20 +162,7 @@ export default function AdminShell({ children }: AdminShellProps) {
                   <span className="role-pill text-capitalize">{sessionUser.role}</span>
                 </div>
 
-                <div className="p-4 pt-3 d-grid gap-2 sidebar-actions">
-                  <Link href="/" className="btn btn-outline-secondary btn-sm">
-                    <i className="fa-solid fa-house me-2"></i>Back Home
-                  </Link>
-                  <button
-                    className="btn btn-danger btn-sm"
-                    onClick={() => {
-                      localStorage.removeItem("mandi:sessionUser");
-                      window.location.href = "/auth";
-                    }}
-                  >
-                    <i className="fa-solid fa-right-from-bracket me-2"></i>Logout
-                  </button>
-                </div>
+                {/* Sidebar actions moved to topbar */}
               </aside>
             </div>
 
@@ -191,17 +180,32 @@ export default function AdminShell({ children }: AdminShellProps) {
                     <span className="topbar-dot"></span>
                     <span className="fw-semibold" style={{ color: "#1b4332" }}>{pageTitle}</span>
                   </div>
-                  <div className="d-flex align-items-center gap-3 small text-muted">
-                    <span className="d-flex align-items-center gap-2">
-                      <i className="fa-regular fa-clock"></i>
-                      <span>{new Date().toLocaleDateString("en-PK", { weekday: "short", month: "short", day: "numeric" })}</span>
-                    </span>
-                    <span className="d-none d-sm-inline" style={{ color: "#ccc" }}>|</span>
-                    <span className="d-none d-sm-flex align-items-center gap-2">
-                      <i className="fa-regular fa-user"></i>
-                      <span>{sessionUser.fullName}</span>
-                      <span className="badge text-bg-light border text-capitalize" style={{ fontSize: "0.7rem" }}>{sessionUser.role}</span>
-                    </span>
+                  <div className="d-flex align-items-center gap-3">
+                    <div className="d-none d-md-flex align-items-center gap-2 text-muted small">
+                        <i className="fa-regular fa-clock"></i>
+                        <span>{new Date().toLocaleDateString("en-PK", { weekday: "short", month: "short", day: "numeric" })}</span>
+                        <span className="mx-1" style={{ color: "#ccc" }}>|</span>
+                        <span>{sessionUser.fullName}</span>
+                        <span className="badge text-bg-light border text-capitalize" style={{ fontSize: "0.7rem" }}>{sessionUser.role}</span>
+                    </div>
+                    <div className="d-flex align-items-center gap-2 ms-2">
+                        <Link href="/" className="btn btn-sm btn-outline-success border-0 fw-bold d-flex align-items-center gap-1">
+                            <i className="fa-solid fa-house"></i>
+                            <span className="d-none d-sm-inline">Home</span>
+                        </Link>
+                        <button
+                            className="btn btn-sm btn-outline-danger border-0 d-flex align-items-center gap-1"
+                            title="Logout"
+                            onClick={() => {
+                                localStorage.removeItem("mundi:sessionUser");
+                                window.location.href = "/auth";
+                            }}
+                        >
+                          <span className="d-none d-sm-inline fw-bold">Logout</span>
+                            <i className="fa-solid fa-right-from-bracket"></i>
+                            
+                        </button>
+                    </div>
                   </div>
                 </div>
               </header>

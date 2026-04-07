@@ -10,6 +10,7 @@ export type CustomFieldDefinition = {
 };
 
 export type CategoryDocument = {
+  group: string;
   name: string;
   description?: string;
   createdBy: mongoose.Types.ObjectId;
@@ -54,6 +55,7 @@ const categorySubSchema = new Schema(
 
 const categorySchema = new Schema<CategoryDocument>(
   {
+    group: { type: String, required: true, default: "General", trim: true },
     name: { type: String, required: true, unique: true, trim: true },
     description: { type: String, trim: true },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },

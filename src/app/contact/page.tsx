@@ -213,17 +213,17 @@ export default function ContactPage() {
                                         </div>
                                         <div>
                                             <h6 className="fw-bold mb-1 text-white">Email Us</h6>
-                                            <p className="mb-0 text-white-50 small">support@onlinemandi.pk<br />info@onlinemandi.pk</p>
+                                            <p className="mb-0 text-white-50 small">support@onlinemundi.com<br />info@onlinemundi.com</p>
                                         </div>
                                     </div>
 
                                     <div className="mt-auto">
                                         <h6 className="fw-bold mb-3 text-white">Connect With Us</h6>
                                         <div className="d-flex gap-2">
-                                            <a href="https://facebook.com/onlinemandi" target="_blank" rel="noopener noreferrer" className="social-btn"><i className="fa-brands fa-facebook-f"></i></a>
-                                            <a href="https://twitter.com/onlinemandi" target="_blank" rel="noopener noreferrer" className="social-btn"><i className="fa-brands fa-twitter"></i></a>
-                                            <a href="https://instagram.com/onlinemandi" target="_blank" rel="noopener noreferrer" className="social-btn"><i className="fa-brands fa-instagram"></i></a>
-                                            <a href="https://linkedin.com/company/onlinemandi" target="_blank" rel="noopener noreferrer" className="social-btn"><i className="fa-brands fa-linkedin-in"></i></a>
+                                            <a href="https://facebook.com/onlinemundi" target="_blank" rel="noopener noreferrer" className="social-btn"><i className="fa-brands fa-facebook-f"></i></a>
+                                            <a href="https://twitter.com/onlinemundi" target="_blank" rel="noopener noreferrer" className="social-btn"><i className="fa-brands fa-twitter"></i></a>
+                                            <a href="https://instagram.com/onlinemundi" target="_blank" rel="noopener noreferrer" className="social-btn"><i className="fa-brands fa-instagram"></i></a>
+                                            <a href="https://linkedin.com/company/onlinemundi" target="_blank" rel="noopener noreferrer" className="social-btn"><i className="fa-brands fa-linkedin-in"></i></a>
                                         </div>
                                     </div>
                                 </div>

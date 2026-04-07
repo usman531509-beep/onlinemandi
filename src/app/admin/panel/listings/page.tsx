@@ -17,6 +17,7 @@ type Listing = {
   id: string;
   title: string;
   category: string;
+  group?: string;
   city: string;
   quantity: string;
   pricePerMaund: number;
@@ -35,6 +36,7 @@ type Listing = {
 type Category = {
   id: string;
   name: string;
+  group?: string;
   subcategories?: {
     id: string;
     name: string;
@@ -55,6 +57,7 @@ type Category = {
 
 const initialListingForm = {
   title: "",
+  group: "",
   category: "",
   subcategory: "",
   childCategory: "",
@@ -103,6 +106,7 @@ function filesToDataUrls(files: File[]) {
 
 function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
   const [categories, setCategories] = useState<Category[]>([]);
+  const [groupOptions, setGroupOptions] = useState<string[]>([]);
   const [listings, setListings] = useState<Listing[]>([]);
   const [message, setMessage] = useState("");
   const [isLoadingListings, setIsLoadingListings] = useState(false);
@@ -133,7 +137,45 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
 
+  const [sellers, setSellers] = useState<{ id: string; fullName: string; businessName?: string }[]>([]);
+  const [isOnBehalf, setIsOnBehalf] = useState(false);
+  const [onBehalfOfSellerId, setOnBehalfOfSellerId] = useState("");
+
   const categoryOptions = useMemo(() => categories.map((category) => category.name), [categories]);
+
+  useEffect(() => {
+    const sub = listingForm.subcategory;
+    const child = listingForm.childCategory;
+    const cat = listingForm.category;
+    let newTitle = "";
+    if (sub && child) newTitle = `${sub} - ${child}`;
+    else if (sub) newTitle = sub;
+    else if (cat) newTitle = cat;
+
+    if (newTitle && listingForm.title !== newTitle) {
+      setListingForm(prev => ({ ...prev, title: newTitle }));
+    }
+  }, [listingForm.category, listingForm.subcategory, listingForm.childCategory]);
+
+  useEffect(() => {
+    const sub = editForm.subcategory;
+    const child = editForm.childCategory;
+    const cat = editForm.category;
+    let newTitle = "";
+    if (sub && child) newTitle = `${sub} - ${child}`;
+    else if (sub) newTitle = sub;
+    else if (cat) newTitle = cat;
+
+    if (newTitle && editForm.title !== newTitle) {
+      setEditForm(prev => ({ ...prev, title: newTitle }));
+    }
+  }, [editForm.category, editForm.subcategory, editForm.childCategory]);
+
+  const getCategoryOptions = useCallback((groupName: string) => {
+    return categories
+      .filter((category) => (category.group || "Crops").toLowerCase() === (groupName || "").toLowerCase())
+      .map((category) => category.name);
+  }, [categories]);
 
   const findHierarchy = useCallback((categoryName: string) => {
     for (const cat of categories) {
@@ -163,13 +205,31 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
     if (!categoryOptions.length) return;
 
     setListingForm((prev) => {
-      const catName = prev.category || categoryOptions[0];
+      if (prev.category) return prev; // Avoid overwriting if they are typing
+      const g = prev.group || (groupOptions.length > 0 ? groupOptions[0] : "Crops");
+      const validCategories = getCategoryOptions(g);
+      const catName = prev.category || validCategories[0] || "";
       const cat = categories.find(c => c.name === catName);
       const extraInfo = (cat?.customFields || []).map(f => ({ label: f.label, value: "" }));
-      return { ...prev, category: catName, extraInfo };
+      return { ...prev, group: g, category: catName, extraInfo };
     });
-    setEditForm((prev) => ({ ...prev, category: prev.category || categoryOptions[0] }));
-  }, [categoryOptions, categories]);
+    setEditForm((prev) => {
+      const g = prev.group || (groupOptions.length > 0 ? groupOptions[0] : "Crops");
+      return { ...prev, group: g, category: prev.category || getCategoryOptions(g)[0] || "" };
+    });
+  }, [categoryOptions, groupOptions, categories, getCategoryOptions]);
+
+  const loadGroups = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/groups?userId=${encodeURIComponent(sessionUser.id)}&role=${encodeURIComponent(sessionUser.role)}`, { cache: "no-store" });
+      const data = (await response.json()) as { ok: boolean; groups?: { id: string; name: string }[] };
+      if (data.ok && data.groups) {
+        setGroupOptions(data.groups.map(g => g.name));
+      }
+    } catch {
+      // silently handle
+    }
+  }, [sessionUser.id, sessionUser.role]);
 
   const loadCategories = useCallback(async () => {
     try {
@@ -201,9 +261,28 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
     }
   }, [sessionUser.id, sessionUser.role]);
 
+  const loadSellers = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/users?role=${sessionUser.role}&userId=${sessionUser.id}`);
+      const data = (await response.json()) as { ok: boolean; users?: any[] };
+      if (data.ok && data.users) {
+        const sellerUsers = data.users
+          .filter((u: any) => u.role === "seller")
+          .map((u: any) => ({
+            id: u.id,
+            fullName: u.fullName,
+            businessName: u.sellerProfile?.businessName || ""
+          }));
+        setSellers(sellerUsers);
+      }
+    } catch (error) {
+      console.error("Failed to load sellers:", error);
+    }
+  }, [sessionUser.id, sessionUser.role]);
+
   useEffect(() => {
-    void Promise.all([loadCategories(), loadListings()]);
-  }, [loadCategories, loadListings]);
+    void Promise.all([loadGroups(), loadCategories(), loadListings(), loadSellers()]);
+  }, [loadGroups, loadCategories, loadListings, loadSellers]);
 
   const onCreateListingImagesChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
@@ -279,6 +358,7 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
     setEditingListingId(listing.id);
     setEditForm({
       title: listing.title,
+      group: listing.group || "Crops",
       category: hierarchy.category,
       subcategory: hierarchy.sub,
       childCategory: hierarchy.child,
@@ -309,6 +389,7 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
         body: JSON.stringify({
           userId: sessionUser.id,
           role: sessionUser.role,
+          group: listingForm.group,
           title: listingForm.title,
           category: listingForm.childCategory || listingForm.subcategory || listingForm.category,
           city: listingForm.city,
@@ -317,6 +398,7 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
           description: listingForm.description,
           images: listingImages,
           extraInfo: listingForm.extraInfo,
+          onBehalfOfSellerId: isOnBehalf ? onBehalfOfSellerId : undefined,
         }),
       });
       const data = (await response.json()) as { ok: boolean; message?: string };
@@ -324,8 +406,10 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
         setMessage(data.message || "Failed to create listing.");
         return;
       }
-      setListingForm((prev) => ({ ...initialListingForm, category: prev.category, subcategory: prev.subcategory, childCategory: prev.childCategory, extraInfo: [] }));
+      setListingForm((prev) => ({ ...initialListingForm, group: prev.group, category: prev.category, subcategory: prev.subcategory, childCategory: prev.childCategory, extraInfo: [] }));
       setListingImages([]);
+      setIsOnBehalf(false);
+      setOnBehalfOfSellerId("");
       setMessage("Listing created successfully.");
       setShowCreateListingModal(false);
       await loadListings();
@@ -348,6 +432,7 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
         body: JSON.stringify({
           userId: sessionUser.id,
           role: sessionUser.role,
+          group: editForm.group,
           title: editForm.title,
           category: editForm.childCategory || editForm.subcategory || editForm.category,
           city: editForm.city,
@@ -481,8 +566,10 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
           <div className="col-md-4">
             <select className="form-select" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
               <option value="all">All Categories</option>
-              {categoryOptions.map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
+              {categories.map((cat) => (
+                <option key={cat.name} value={cat.name}>
+                  {cat.group ? `${cat.group} > ` : ""}{cat.name}
+                </option>
               ))}
             </select>
           </div>
@@ -498,24 +585,81 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
                   <i className="fa-solid fa-plus-circle" style={{ color: "#2a5d49" }}></i>
                   <h3 className="h5 fw-bold mb-0" style={{ color: "#1b4332" }}>Create New Listing</h3>
                 </div>
-                <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => setShowCreateListingModal(false)}>
+                <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => { setShowCreateListingModal(false); setMessage(""); }}>
                   <i className="fa-solid fa-xmark"></i>
                 </button>
               </div>
+              {message && <div className="alert alert-info py-2 mb-4 rounded-3 shadow-sm border-0" style={{ background: "#e4f1eb", color: "#1b4332" }}><i className="fa-solid fa-circle-info me-2"></i>{message}</div>}
               <form onSubmit={onCreateListing}>
                 <div className="row g-3">
-                  <div className="col-12"><label className="form-label">Title</label><input className="form-control" required value={listingForm.title} onChange={(e) => setListingForm((p) => ({ ...p, title: e.target.value }))} /></div>
+                  <div className="col-12 mb-2">
+                    <div className="card bg-light border-0 rounded-3 p-3">
+                      <div className="form-check form-switch mb-2">
+                        <input
+                          className="form-check-input"
+                          type="checkbox"
+                          id="onBehalfToggle"
+                          checked={isOnBehalf}
+                          onChange={(e) => {
+                            setIsOnBehalf(e.target.checked);
+                            if (!e.target.checked) setOnBehalfOfSellerId("");
+                          }}
+                        />
+                        <label className="form-check-label fw-bold" htmlFor="onBehalfToggle" style={{ color: "#1b4332" }}>
+                          Create on behalf of a seller
+                        </label>
+                      </div>
+                      {isOnBehalf && (
+                        <div className="mt-2">
+                          <label className="form-label small text-muted text-uppercase fw-bold">Select Seller</label>
+                          <select
+                            className="form-select border-0 shadow-sm"
+                            required={isOnBehalf}
+                            value={onBehalfOfSellerId}
+                            onChange={(e) => setOnBehalfOfSellerId(e.target.value)}
+                          >
+                            <option value="">-- Choose a Seller --</option>
+                            {sellers.map((s) => (
+                              <option key={s.id} value={s.id}>
+                                {s.fullName} {s.businessName ? `(${s.businessName})` : ""}
+                              </option>
+                            ))}
+                          </select>
+                          {sellers.length === 0 && (
+                            <div className="alert alert-warning py-2 mt-2 small mb-0">
+                              No sellers found. Please ensure you have registered sellers in the system.
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  {/* Title is auto-generated based on hierarchy */}
+                  <div className="col-md-6">
+                    <label className="form-label">Group</label>
+                    <select
+                      className="form-select"
+                      value={listingForm.group}
+                      onChange={(e) => {
+                        const newGroup = e.target.value;
+                        setListingForm((p) => ({ ...p, group: newGroup, category: "", subcategory: "", childCategory: "", extraInfo: [] }));
+                      }}
+                      disabled={!groupOptions.length}
+                    >
+                      {groupOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                    </select>
+                  </div>
 
                   <div className="col-md-4">
                     <label className="form-label">Category</label>
-                    <select className="form-select" required value={listingForm.category} onChange={(e) => {
+                    <select className="form-select" required value={listingForm.category} disabled={!getCategoryOptions(listingForm.group).length} onChange={(e) => {
                       const catName = e.target.value;
                       const cat = categories.find(c => c.name === catName);
                       const extraInfo = (cat?.customFields || []).map(f => ({ label: f.label, value: "" }));
                       setListingForm((p) => ({ ...p, category: catName, subcategory: "", childCategory: "", extraInfo }));
                     }}>
                       <option value="">Select Category</option>
-                      {categoryOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                      {getCategoryOptions(listingForm.group).map((option) => <option key={option} value={option}>{option}</option>)}
                     </select>
                   </div>
 
@@ -615,17 +759,32 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
         <section className="card border shadow-sm rounded-4 p-4 mb-4 bg-white">
           <div className="d-flex justify-content-between align-items-center mb-3">
             <h3 className="h5 fw-bold mb-0">Edit Listing</h3>
-            <button type="button" className="btn btn-sm btn-outline-secondary" onClick={cancelEditListing}>Cancel</button>
+            <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => { cancelEditListing(); setMessage(""); }}>Cancel</button>
           </div>
+          {message && <div className="alert alert-info py-2 mb-4 rounded-3 shadow-sm border-0" style={{ background: "#e4f1eb", color: "#1b4332" }}><i className="fa-solid fa-circle-info me-2"></i>{message}</div>}
           <form onSubmit={onUpdateListing}>
             <div className="row g-3">
-              <div className="col-12"><label className="form-label">Title</label><input className="form-control" required value={editForm.title} onChange={(e) => setEditForm((p) => ({ ...p, title: e.target.value }))} /></div>
+              {/* Title is auto-generated based on hierarchy */}
+              <div className="col-md-6">
+                <label className="form-label">Group</label>
+                <select
+                  className="form-select"
+                  value={editForm.group}
+                  onChange={(e) => {
+                    const newGroup = e.target.value;
+                    setEditForm((p) => ({ ...p, group: newGroup, category: "", subcategory: "", childCategory: "" }));
+                  }}
+                  disabled={!groupOptions.length}
+                >
+                  {groupOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+                </select>
+              </div>
 
               <div className="col-md-4">
                 <label className="form-label">Category</label>
-                <select className="form-select" required value={editForm.category} onChange={(e) => setEditForm((p) => ({ ...p, category: e.target.value, subcategory: "", childCategory: "" }))}>
+                <select className="form-select" required value={editForm.category} disabled={!getCategoryOptions(editForm.group).length} onChange={(e) => setEditForm((p) => ({ ...p, category: e.target.value, subcategory: "", childCategory: "" }))}>
                   <option value="">Select Category</option>
-                  {categoryOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+                  {getCategoryOptions(editForm.group).map((option) => <option key={option} value={option}>{option}</option>)}
                 </select>
               </div>
 
@@ -722,7 +881,11 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
         </section>
       )}
 
-      {message && <div className="alert alert-info py-2 rounded-3">{message}</div>}
+      {!showCreateListingModal && !editingListingId && message && (
+        <div className="alert alert-info py-2 rounded-3 mb-4 shadow-sm border-0" style={{ background: "#e4f1eb", color: "#1b4332" }}>
+          <i className="fa-solid fa-circle-info me-2"></i>{message}
+        </div>
+      )}
 
       <section className="card border shadow-sm rounded-4 p-0 overflow-hidden bg-white">
         {isLoadingListings ? (

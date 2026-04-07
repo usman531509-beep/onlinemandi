@@ -23,6 +23,7 @@ type CustomField = {
 
 type Category = {
   id: string;
+  group: string;
   name: string;
   description: string;
   createdAt: string;
@@ -43,11 +44,19 @@ type CategorySub = {
 
 type CategoryNode = {
   id: string;
+  group: string;
   name: string;
   description: string;
   createdAt: string;
   subcategories: CategorySub[];
   customFields: CustomField[];
+};
+
+type GroupNode = {
+  id: string;
+  name: string;
+  description: string;
+  createdAt: string;
 };
 
 function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
@@ -56,11 +65,30 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
   const [categoriesMessage, setCategoriesMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
+  const [groups, setGroups] = useState<GroupNode[]>([]);
+  const [isLoadingGroups, setIsLoadingGroups] = useState(false);
+  const [groupsMessage, setGroupsMessage] = useState("");
+
+  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [newGroupDescription, setNewGroupDescription] = useState("");
+
+  const [editingGroup, setEditingGroup] = useState<GroupNode | null>(null);
+  const [isUpdatingGroup, setIsUpdatingGroup] = useState(false);
+  const [editGroupName, setEditGroupName] = useState("");
+  const [editGroupDescription, setEditGroupDescription] = useState("");
+  const [isDeletingGroupId, setIsDeletingGroupId] = useState<string | null>(null);
+
+  const [selectedGroupName, setSelectedGroupName] = useState<string | null>(null);
+
+  const [categoryGroupName, setCategoryGroupName] = useState("");
   const [categoryName, setCategoryName] = useState("");
   const [categoryDescription, setCategoryDescription] = useState("");
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
   const [showCreateCategoryModal, setShowCreateCategoryModal] = useState(false);
 
+  const [editCategoryGroupName, setEditCategoryGroupName] = useState("");
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [editCategoryName, setEditCategoryName] = useState("");
   const [editCategoryDescription, setEditCategoryDescription] = useState("");
@@ -92,6 +120,8 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
   });
 
   const openCreateCategoryModal = () => {
+    const activeGroup = groups.find(g => g.name.toLowerCase() === (selectedGroupName || "").toLowerCase()) || (groups.length > 0 ? groups[0] : null);
+    setCategoryGroupName(activeGroup ? activeGroup.name : "");
     setCategoryName("");
     setCategoryDescription("");
     setCreateSubcategories([]);
@@ -126,9 +156,32 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
     }
   }, []);
 
+  const loadGroups = useCallback(async () => {
+    setIsLoadingGroups(true);
+    setGroupsMessage("");
+
+    try {
+      const response = await fetch(`/api/groups?userId=${encodeURIComponent(sessionUser.id)}&role=${encodeURIComponent(sessionUser.role)}`, { cache: "no-store" });
+      const data = (await response.json()) as { ok: boolean; message?: string; groups?: GroupNode[] };
+
+      if (!response.ok || !data.ok) {
+        setGroups([]);
+        setGroupsMessage(data.message || "Failed to load groups.");
+        return;
+      }
+      setGroups(data.groups || []);
+    } catch {
+      setGroups([]);
+      setGroupsMessage("Network error while loading groups.");
+    } finally {
+      setIsLoadingGroups(false);
+    }
+  }, [sessionUser.id, sessionUser.role]);
+
   useEffect(() => {
     void loadCategories();
-  }, [loadCategories]);
+    void loadGroups();
+  }, [loadCategories, loadGroups]);
 
   const categoryTree = useMemo<CategoryNode[]>(() => {
     let filtered = categories;
@@ -147,7 +200,7 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
   }, [categories, searchQuery]);
 
   const selectedCategory = useMemo(
-    () => categoryTree.find((category) => category.id === selectedCategoryId) || categoryTree[0],
+    () => categoryTree.find((category) => category.id === selectedCategoryId) || null,
     [categoryTree, selectedCategoryId]
   );
 
@@ -160,14 +213,30 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
   }, [selectedCategory, selectedSubId]);
 
   useEffect(() => {
-    if (categoryTree.length === 0) return;
-    if (!selectedCategoryId || !categoryTree.some((category) => category.id === selectedCategoryId)) {
-      const firstCategory = categoryTree[0];
+    if (groups.length > 0 && (!selectedGroupName || !groups.some(g => g.name === selectedGroupName))) {
+      setSelectedGroupName(groups[0].name);
+    } else if (groups.length === 0) {
+      setSelectedGroupName(null);
+    }
+  }, [groups, selectedGroupName]);
+
+  const filteredCategories = useMemo(() => {
+    if (!selectedGroupName) return [];
+    return categoryTree.filter((c) => (c.group || "").toLowerCase() === selectedGroupName.toLowerCase());
+  }, [categoryTree, selectedGroupName]);
+
+  useEffect(() => {
+    if (filteredCategories.length === 0) {
+      setSelectedCategoryId(null);
+      return;
+    }
+    if (!selectedCategoryId || !filteredCategories.some((category) => category.id === selectedCategoryId)) {
+      const firstCategory = filteredCategories[0];
       setSelectedCategoryId(firstCategory.id);
       setSelectedSubId(firstCategory.subcategories[0]?.id ?? null);
       setSelectedChildId(firstCategory.subcategories[0]?.children[0]?.id ?? null);
     }
-  }, [categoryTree, selectedCategoryId]);
+  }, [filteredCategories, selectedCategoryId]);
 
   useEffect(() => {
     if (!selectedCategory) return;
@@ -185,6 +254,114 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
     }
   }, [selectedSubcategory, selectedChildId]);
 
+  // ─── Group CRUD ───────────────────────────────────────────────────────
+  const onCreateGroup = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsCreatingGroup(true);
+    setGroupsMessage("");
+
+    try {
+      const response = await fetch("/api/groups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: sessionUser.id,
+          role: sessionUser.role,
+          name: newGroupName,
+          description: newGroupDescription,
+        }),
+      });
+
+      const data = (await response.json()) as { ok: boolean; message?: string };
+      if (!response.ok || !data.ok) {
+        setGroupsMessage(data.message || "Failed to create group.");
+        return;
+      }
+
+      setShowCreateGroupModal(false);
+      setNewGroupName("");
+      setNewGroupDescription("");
+      setGroupsMessage("Group created successfully.");
+      await loadGroups();
+      await loadCategories();
+    } catch {
+      setGroupsMessage("Network error while creating group.");
+    } finally {
+      setIsCreatingGroup(false);
+    }
+  };
+
+  const onUpdateGroup = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editingGroup) return;
+    setIsUpdatingGroup(true);
+    setGroupsMessage("");
+
+    try {
+      const response = await fetch(`/api/groups/${editingGroup.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: sessionUser.id,
+          role: sessionUser.role,
+          name: editGroupName,
+          description: editGroupDescription,
+        }),
+      });
+
+      const data = (await response.json()) as { ok: boolean; message?: string };
+      if (!response.ok || !data.ok) {
+        setGroupsMessage(data.message || "Failed to update group.");
+        return;
+      }
+
+      setSelectedGroupName(editGroupName.trim());
+      setEditingGroup(null);
+      setGroupsMessage("Group updated successfully.");
+      await loadGroups();
+      await loadCategories();
+    } catch {
+      setGroupsMessage("Network error while updating group.");
+    } finally {
+      setIsUpdatingGroup(false);
+    }
+  };
+
+  const onDeleteGroup = async (groupId: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: "Delete Group",
+      message: "Are you sure you want to delete this group? All categories under it will be moved to \"General\".",
+      onConfirm: async () => {
+        setIsDeletingGroupId(groupId);
+        setGroupsMessage("");
+
+        try {
+          const response = await fetch(
+            `/api/groups/${groupId}?userId=${encodeURIComponent(sessionUser.id)}&role=${encodeURIComponent(sessionUser.role)}`,
+            { method: "DELETE" }
+          );
+
+          const data = (await response.json()) as { ok: boolean; message?: string };
+          if (!response.ok || !data.ok) {
+            setGroupsMessage(data.message || "Failed to delete group.");
+            return;
+          }
+
+          setSelectedGroupName(null);
+          setGroupsMessage("Group deleted successfully.");
+          await loadGroups();
+          await loadCategories();
+        } catch {
+          setGroupsMessage("Network error while deleting group.");
+        } finally {
+          setIsDeletingGroupId(null);
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+        }
+      },
+    });
+  };
+
   const onCreateCategory = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsCreatingCategory(true);
@@ -197,6 +374,7 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
         body: JSON.stringify({
           userId: sessionUser.id,
           role: sessionUser.role,
+          group: categoryGroupName,
           name: categoryName,
           description: categoryDescription,
           subcategories: createSubcategories
@@ -233,7 +411,9 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
       setCategoryDescription("");
       setCreateSubcategories([]);
       setCreateCustomFields([]);
+      setShowCreateCategoryModal(false);
       setCategoriesMessage("Category created successfully.");
+      setSelectedGroupName(categoryGroupName);
       await loadCategories();
     } catch {
       setCategoriesMessage("Network error while creating category.");
@@ -244,6 +424,7 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
 
   const startEditCategory = (category: Category) => {
     setEditingCategoryId(category.id);
+    setEditCategoryGroupName(category.group);
     setEditCategoryName(category.name);
     setEditCategoryDescription(category.description || "");
     setEditSubcategories(Array.isArray(category.subcategories) ? category.subcategories : []);
@@ -253,6 +434,7 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
 
   const cancelEditCategory = () => {
     setEditingCategoryId(null);
+    setEditCategoryGroupName(selectedGroupName || "");
     setEditCategoryName("");
     setEditCategoryDescription("");
     setEditSubcategories([]);
@@ -273,6 +455,7 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
         body: JSON.stringify({
           userId: sessionUser.id,
           role: sessionUser.role,
+          group: editCategoryGroupName,
           name: editCategoryName,
           description: editCategoryDescription,
           subcategories: editSubcategories
@@ -631,6 +814,79 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
           </div>
         </div>
       )}
+
+      {/* ── Create Group Modal ───────────────────────────────────────── */}
+      {showCreateGroupModal && (
+        <div className="category-modal-backdrop" onClick={() => setShowCreateGroupModal(false)}>
+          <div className="category-modal card border shadow-sm rounded-4 bg-white" style={{ maxWidth: "500px" }} onClick={(event) => event.stopPropagation()}>
+            <div className="card-body p-4 p-md-5">
+              <div className="d-flex justify-content-between align-items-center mb-4">
+                <div className="d-flex align-items-center gap-2">
+                  <i className="fa-solid fa-folder-plus" style={{ color: "#2a5d49" }}></i>
+                  <h3 className="h5 fw-bold mb-0" style={{ color: "#1b4332" }}>Create New Group</h3>
+                </div>
+                <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => setShowCreateGroupModal(false)}>
+                  <i className="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+              {groupsMessage && <div className="alert alert-info py-2 mb-3">{groupsMessage}</div>}
+              <form onSubmit={onCreateGroup}>
+                <div className="mb-3">
+                  <label className="form-label">Group Name</label>
+                  <input className="form-control" required placeholder="e.g. Grains, Fruits, Vegetables" value={newGroupName} onChange={(e) => setNewGroupName(e.target.value)} />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Description <span className="text-muted">(optional)</span></label>
+                  <textarea className="form-control" rows={2} placeholder="Brief description of this group" value={newGroupDescription} onChange={(e) => setNewGroupDescription(e.target.value)} />
+                </div>
+                <div className="d-flex justify-content-end gap-2">
+                  <button type="button" className="btn btn-outline-secondary" onClick={() => setShowCreateGroupModal(false)}>Cancel</button>
+                  <button className="btn btn-success px-4" type="submit" disabled={isCreatingGroup}>
+                    {isCreatingGroup ? "Creating..." : "Create Group"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Edit Group Modal ─────────────────────────────────────────── */}
+      {editingGroup && (
+        <div className="category-modal-backdrop" onClick={() => setEditingGroup(null)}>
+          <div className="category-modal card border shadow-sm rounded-4 bg-white" style={{ maxWidth: "500px" }} onClick={(event) => event.stopPropagation()}>
+            <div className="card-body p-4 p-md-5">
+              <div className="d-flex justify-content-between align-items-center mb-4">
+                <div className="d-flex align-items-center gap-2">
+                  <i className="fa-solid fa-pen-to-square" style={{ color: "#2a5d49" }}></i>
+                  <h3 className="h5 fw-bold mb-0" style={{ color: "#1b4332" }}>Edit Group</h3>
+                </div>
+                <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => setEditingGroup(null)}>
+                  <i className="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+              {groupsMessage && <div className="alert alert-info py-2 mb-3">{groupsMessage}</div>}
+              <form onSubmit={onUpdateGroup}>
+                <div className="mb-3">
+                  <label className="form-label">Group Name</label>
+                  <input className="form-control" required value={editGroupName} onChange={(e) => setEditGroupName(e.target.value)} />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Description <span className="text-muted">(optional)</span></label>
+                  <textarea className="form-control" rows={2} value={editGroupDescription} onChange={(e) => setEditGroupDescription(e.target.value)} />
+                </div>
+                <div className="d-flex justify-content-end gap-2">
+                  <button type="button" className="btn btn-outline-secondary" onClick={() => setEditingGroup(null)}>Cancel</button>
+                  <button className="btn btn-success px-4" type="submit" disabled={isUpdatingGroup}>
+                    {isUpdatingGroup ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
       <section className="card border shadow-sm rounded-4 p-4 mb-4 bg-white">
         <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-3">
           <div className="d-flex align-items-center gap-3">
@@ -643,9 +899,6 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
             </div>
           </div>
           <div className="d-flex gap-2 flex-wrap">
-            <button className="btn btn-success" onClick={openCreateCategoryModal}>
-              <i className="fa-solid fa-plus me-2"></i>Create Category
-            </button>
             <button className="btn btn-outline-success" onClick={() => void loadCategories()}>
               <i className="fa-solid fa-rotate-right me-2"></i>Refresh
             </button>
@@ -666,9 +919,30 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
                   <i className="fa-solid fa-xmark"></i>
                 </button>
               </div>
+
+              {categoriesMessage && (
+                <div className={`alert ${categoriesMessage.includes("success") ? "alert-success" : "alert-danger"} py-2 mb-4`}>
+                  {categoriesMessage}
+                </div>
+              )}
+
               <form onSubmit={onCreateCategory}>
                 <div className="row g-3">
-                  <div className="col-md-5">
+                  <div className="col-md-4">
+                    <label className="form-label">Category Group</label>
+                    <select
+                      className="form-select"
+                      required
+                      value={categoryGroupName}
+                      onChange={(event) => setCategoryGroupName(event.target.value)}
+                    >
+                      <option value="">Select Group</option>
+                      {groups.map((g) => (
+                        <option key={g.id} value={g.name}>{g.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-md-4">
                     <label className="form-label">Category Name</label>
                     <input
                       className="form-control"
@@ -678,7 +952,7 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
                       onChange={(event) => setCategoryName(event.target.value)}
                     />
                   </div>
-                  <div className="col-md-7">
+                  <div className="col-md-4">
                     <label className="form-label">Description</label>
                     <input
                       className="form-control"
@@ -854,7 +1128,7 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
               <input type="text" className="form-control border-start-0 ps-0 form-control-sm" placeholder="Search categories..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>
             <div className="hierarchy-legend m-0">
-              Category <i className="fa-solid fa-chevron-right"></i> Subcategory{" "}
+              Group <i className="fa-solid fa-chevron-right"></i> Category <i className="fa-solid fa-chevron-right"></i> Subcategory{" "}
               <i className="fa-solid fa-chevron-right"></i> Child
             </div>
           </div>
@@ -871,12 +1145,83 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
           ) : (
             <div className="hierarchy-grid">
               <div className="hierarchy-column">
+                <div className="hierarchy-title">Group</div>
+                <div className="hierarchy-list">
+                  {isLoadingGroups ? (
+                    <div className="hierarchy-empty"><i className="fa-solid fa-spinner fa-spin me-2"></i>Loading...</div>
+                  ) : groups.length === 0 ? (
+                    <div className="hierarchy-empty">No groups yet. Create one below.</div>
+                  ) : (
+                    groups.map((group) => (
+                      <button
+                        type="button"
+                        key={group.id}
+                        className={`hierarchy-item ${selectedGroupName === group.name ? "active" : ""}`}
+                        onClick={() => setSelectedGroupName(group.name)}
+                      >
+                        <div>
+                          <div className="hierarchy-item-title">{group.name}</div>
+                          <div className="hierarchy-item-desc">{group.description || "No description"}</div>
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+                <div className="hierarchy-actions mt-3">
+                  <button
+                    className="btn btn-outline-success btn-sm w-100 mb-2"
+                    onClick={() => {
+                      const g = groups.find(g => g.name === selectedGroupName);
+                      if (g) {
+                        setEditingGroup(g);
+                        setEditGroupName(g.name);
+                        setEditGroupDescription(g.description || "");
+                      }
+                    }}
+                    disabled={!selectedGroupName}
+                  >
+                    <i className="fa-solid fa-pen me-2"></i>Edit Group
+                  </button>
+                  <button
+                    className="btn btn-outline-primary btn-sm w-100 mb-2"
+                    type="button"
+                    onClick={() => {
+                      setNewGroupName("");
+                      setNewGroupDescription("");
+                      setShowCreateGroupModal(true);
+                    }}
+                  >
+                    <i className="fa-solid fa-plus me-2"></i>Add Group
+                  </button>
+                  <button
+                    className="btn btn-outline-success btn-sm w-100 mb-2"
+                    type="button"
+                    onClick={openCreateCategoryModal}
+                    disabled={!selectedGroupName}
+                  >
+                    <i className="fa-solid fa-plus-circle me-2"></i>Add Category
+                  </button>
+                  <button
+                    className="btn btn-outline-danger btn-sm w-100"
+                    type="button"
+                    onClick={() => {
+                      const g = groups.find(g => g.name === selectedGroupName);
+                      if (g) onDeleteGroup(g.id);
+                    }}
+                    disabled={!selectedGroupName || isDeletingGroupId !== null}
+                  >
+                    <i className="fa-solid fa-trash me-2"></i>
+                    {isDeletingGroupId ? "Deleting..." : "Delete Group"}
+                  </button>
+                </div>
+              </div>
+              <div className="hierarchy-column">
                 <div className="hierarchy-title">Category</div>
                 <div className="hierarchy-list">
-                  {categoryTree.length === 0 ? (
+                  {filteredCategories.length === 0 ? (
                     <div className="hierarchy-empty">No categories yet.</div>
                   ) : (
-                    categoryTree.map((category) => (
+                    filteredCategories.map((category) => (
                       <button
                         type="button"
                         key={category.id}
@@ -1046,9 +1391,30 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
                   <i className="fa-solid fa-xmark"></i>
                 </button>
               </div>
+
+              {categoriesMessage && (
+                <div className={`alert ${categoriesMessage.includes("success") ? "alert-success" : "alert-danger"} py-2 mb-4`}>
+                  {categoriesMessage}
+                </div>
+              )}
+
               <form onSubmit={onUpdateCategory}>
                 <div className="row g-3">
-                  <div className="col-md-5">
+                  <div className="col-md-4">
+                    <label className="form-label">Category Group</label>
+                    <select
+                      className="form-select"
+                      required
+                      value={editCategoryGroupName}
+                      onChange={(event) => setEditCategoryGroupName(event.target.value)}
+                    >
+                      <option value="">Select Group</option>
+                      {groups.map((g) => (
+                        <option key={g.id} value={g.name}>{g.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-md-4">
                     <label className="form-label">Category Name</label>
                     <input
                       className="form-control"
@@ -1057,7 +1423,7 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
                       onChange={(event) => setEditCategoryName(event.target.value)}
                     />
                   </div>
-                  <div className="col-md-7">
+                  <div className="col-md-4">
                     <label className="form-label">Description</label>
                     <input
                       className="form-control"
@@ -1406,7 +1772,7 @@ function CategoriesContent({ sessionUser }: { sessionUser: SessionUser }) {
         .hierarchy-grid {
           display: grid;
           gap: 16px;
-          grid-template-columns: repeat(3, 1fr);
+          grid-template-columns: repeat(4, 1fr);
         }
 
         .hierarchy-column {

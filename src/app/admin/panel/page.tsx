@@ -1,14 +1,35 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+} from "recharts";
 
 import AdminShell from "@/components/panel/AdminShell";
+
+type ChartPoint = { _id: string; revenue?: number; users?: number };
 
 type DashboardStats = {
   totalUsers: number;
   openListings: number;
   pendingVerifications: number;
   revenue: number;
+};
+
+type DashboardCharts = {
+  dailyRevenue: ChartPoint[];
+  userGrowth: ChartPoint[];
+  monthlyRevenue: ChartPoint[];
 };
 
 export default function AdminOverviewPage() {
@@ -26,24 +47,47 @@ function OverviewContent({ userId, role, fullName }: { userId: string; role: "ad
     pendingVerifications: 0,
     revenue: 0,
   });
+  const [charts, setCharts] = useState<DashboardCharts>({
+    dailyRevenue: [],
+    userGrowth: [],
+    monthlyRevenue: [],
+  });
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  });
+
+  const monthOptions = useMemo(() => {
+    const options = [];
+    const now = new Date();
+    for (let i = 0; i < 6; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const label = d.toLocaleString('default', { month: 'long', year: 'numeric' });
+      options.push({ val, label });
+    }
+    return options;
+  }, []);
 
   const loadStats = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/dashboard/stats?role=${role}&userId=${userId}`);
+      const response = await fetch(`/api/dashboard/stats?role=${role}&userId=${userId}&month=${selectedMonth}`);
       const data = (await response.json()) as {
         ok: boolean;
         stats?: DashboardStats;
+        charts?: DashboardCharts;
       };
 
-      if (response.ok && data.ok && data.stats) {
-        setStats(data.stats);
+      if (response.ok && data.ok) {
+        if (data.stats) setStats(data.stats);
+        if (data.charts) setCharts(data.charts);
       }
     } finally {
       setIsLoading(false);
     }
-  }, [role, userId]);
+  }, [role, userId, selectedMonth]);
 
   useEffect(() => {
     void loadStats();
@@ -92,7 +136,7 @@ function OverviewContent({ userId, role, fullName }: { userId: string; role: "ad
         </div>
       </section>
 
-      <div className="row g-3">
+      <div className="row g-3 mb-4">
         {cards.map((card) => (
           <div className="col-md-6 col-xl-3" key={card.label}>
             <div className={`card border-0 shadow-sm h-100 stat-card ${card.className}`}>
@@ -106,6 +150,147 @@ function OverviewContent({ userId, role, fullName }: { userId: string; role: "ad
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Analytics Charts Section */}
+      <div className="row g-4 mb-4">
+        {/* Daily Revenue Chart */}
+        <div className="col-12">
+          <div className="card border-0 shadow-sm rounded-4 chart-card">
+            <div className="card-body p-4">
+              <div className="d-flex justify-content-between align-items-center mb-4">
+                <h5 className="fw-bold mb-0">Daily Sales Revenue</h5>
+                <select 
+                  className="form-select form-select-sm border-light shadow-sm fw-semibold" 
+                  style={{ width: 'auto', background: '#f8f9fa' }}
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                >
+                  {monthOptions.map(m => (
+                    <option key={m.val} value={m.val}>{m.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ width: "100%", height: 300 }}>
+                <ResponsiveContainer>
+                  <AreaChart data={charts.dailyRevenue}>
+                    <defs>
+                      <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#1b4332" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#1b4332" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
+                    <XAxis 
+                       dataKey="_id" 
+                       axisLine={false} 
+                       tickLine={false} 
+                       tick={{ fontSize: 10, fill: "#666" }} 
+                       dy={10}
+                    />
+                    <YAxis 
+                       axisLine={false} 
+                       tickLine={false} 
+                       tick={{ fontSize: 10, fill: "#666" }} 
+                       dx={-10}
+                    />
+                    <Tooltip 
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                      formatter={(val: any) => [`Rs ${Number(val || 0).toLocaleString()}`, "Revenue"]}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="revenue" 
+                      stroke="#1b4332" 
+                      strokeWidth={3} 
+                      fillOpacity={1} 
+                      fill="url(#colorRev)" 
+                      dot={{ r: 4, fill: "#1b4332", strokeWidth: 2, stroke: "#fff" }}
+                      activeDot={{ r: 6 }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* User Growth Chart */}
+        <div className="col-lg-6">
+          <div className="card border-0 shadow-sm rounded-4 chart-card">
+            <div className="card-body p-4">
+              <h5 className="fw-bold mb-4">User Growth (Last 30 Days)</h5>
+              <div style={{ width: "100%", height: 250 }}>
+                <ResponsiveContainer>
+                  <LineChart data={charts.userGrowth}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.05} />
+                    <XAxis 
+                       dataKey="_id" 
+                       axisLine={false} 
+                       tickLine={false} 
+                       tick={{ fontSize: 9, fill: "#888" }} 
+                       dy={8}
+                    />
+                    <YAxis 
+                       axisLine={false} 
+                       tickLine={false} 
+                       tick={{ fontSize: 10, fill: "#888" }} 
+                    />
+                    <Tooltip 
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="users" 
+                      stroke="#40916c" 
+                      strokeWidth={3} 
+                      dot={{ r: 4, fill: "#40916c" }}
+                      activeDot={{ r: 6 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Monthly Revenue Chart */}
+        <div className="col-lg-6">
+          <div className="card border-0 shadow-sm rounded-4 chart-card">
+            <div className="card-body p-4">
+              <h5 className="fw-bold mb-4">Revenue (Last 12 Months)</h5>
+              <div style={{ width: "100%", height: 250 }}>
+                <ResponsiveContainer>
+                  <BarChart data={charts.monthlyRevenue}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.05} />
+                    <XAxis 
+                       dataKey="_id" 
+                       axisLine={false} 
+                       tickLine={false} 
+                       tick={{ fontSize: 10, fill: "#888" }} 
+                       dy={8}
+                    />
+                    <YAxis 
+                       axisLine={false} 
+                       tickLine={false} 
+                       tick={{ fontSize: 10, fill: "#888" }} 
+                    />
+                    <Tooltip 
+                       contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                       formatter={(val: any) => [`Rs ${Number(val || 0).toLocaleString()}`, "Revenue"]}
+                    />
+                    <Bar 
+                       dataKey="revenue" 
+                       fill="#1b4332" 
+                       radius={[6, 6, 0, 0]} 
+                       barSize={30}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <style jsx>{`
@@ -202,6 +387,16 @@ function OverviewContent({ userId, role, fullName }: { userId: string; role: "ad
 
         .stat-soft-amber {
           background: linear-gradient(135deg, #fff8e6 0%, #ffefcc 100%);
+        }
+
+        .chart-card {
+          border: 1px solid rgba(0,0,0,0.04) !important;
+          transition: transform 0.2s;
+        }
+        
+        .chart-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 12px 24px rgba(0,0,0,0.05) !important;
         }
       `}</style>
     </>

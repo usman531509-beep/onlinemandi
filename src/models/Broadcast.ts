@@ -5,7 +5,10 @@ export type BroadcastDocument = {
     buyerName: string;
     buyerPhone: string;
     buyerEmail: string;
+    group: string;
     category: string;
+    subcategory: string;
+    childCategory: string;
     grade: string;
     requirementDetails: string;
     requiredQuantity: string;
@@ -24,7 +27,10 @@ const broadcastSchema = new Schema<BroadcastDocument>(
         buyerName: { type: String, required: true, trim: true },
         buyerPhone: { type: String, required: true, trim: true },
         buyerEmail: { type: String, required: true, trim: true },
+        group: { type: String, required: true, trim: true },
         category: { type: String, required: true, trim: true },
+        subcategory: { type: String, default: "", trim: true },
+        childCategory: { type: String, default: "", trim: true },
         grade: { type: String, default: "", trim: true },
         requirementDetails: { type: String, required: true, trim: true },
         requiredQuantity: { type: String, default: "", trim: true },
