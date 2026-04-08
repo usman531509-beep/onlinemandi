@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import PaymentTransaction from "@/models/PaymentTransaction";
+import PaymentPlan from "@/models/PaymentPlan";
 import User from "@/models/User";
 
 export async function GET(req: NextRequest) {
@@ -34,7 +35,8 @@ export async function GET(req: NextRequest) {
 
         return NextResponse.json({ ok: true, payments }, { status: 200 });
     } catch (error) {
+        const errMsg = error instanceof Error ? error.message : "Unknown error";
         console.error("Error fetching user payment transactions:", error);
-        return NextResponse.json({ ok: false, message: "Server error" }, { status: 500 });
+        return NextResponse.json({ ok: false, message: `Server error: ${errMsg}` }, { status: 500 });
     }
 }

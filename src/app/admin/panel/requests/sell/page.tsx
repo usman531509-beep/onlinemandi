@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AdminShell from "@/components/panel/AdminShell";
+import { findGroupForCategory, getCategoryOptionsForGroup, getGroupOptions } from "@/lib/category-filters";
 
 type SellRequest = {
     _id: string;
@@ -18,6 +19,20 @@ type SellRequest = {
     createdAt: string;
 };
 
+type Category = {
+    id: string;
+    group?: string;
+    name: string;
+    subcategories?: {
+        id: string;
+        name: string;
+        children?: {
+            id: string;
+            name: string;
+        }[];
+    }[];
+};
+
 export default function AdminSellRequestsPage() {
     return (
         <AdminShell>
@@ -28,17 +43,24 @@ export default function AdminSellRequestsPage() {
 
 function SellRequestsContent({ sessionUser }: { sessionUser: { id: string; role: string } }) {
     const [requests, setRequests] = useState<SellRequest[]>([]);
+    const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [selectedRequest, setSelectedRequest] = useState<SellRequest | null>(null);
 
     const [searchQuery, setSearchQuery] = useState("");
+    const [filterGroup, setFilterGroup] = useState("all");
     const [filterCategory, setFilterCategory] = useState("all");
     const [filterStatus, setFilterStatus] = useState("all");
 
     useEffect(() => {
         if (sessionUser.role !== "admin") return;
         fetchRequests();
+    }, [sessionUser]);
+
+    useEffect(() => {
+        if (sessionUser.role !== "admin") return;
+        void fetchCategories();
     }, [sessionUser]);
 
     const fetchRequests = async () => {
@@ -57,6 +79,28 @@ function SellRequestsContent({ sessionUser }: { sessionUser: { id: string; role:
             setLoading(false);
         }
     };
+
+    const fetchCategories = async () => {
+        try {
+            const res = await fetch("/api/categories", { cache: "no-store" });
+            const data = await res.json();
+            if (res.ok && data.ok) {
+                setCategories(data.categories || []);
+            }
+        } catch {
+            setCategories([]);
+        }
+    };
+
+    const groupOptions = useMemo(() => getGroupOptions(categories), [categories]);
+    const categoryOptions = useMemo(() => getCategoryOptionsForGroup(categories, filterGroup), [categories, filterGroup]);
+
+    useEffect(() => {
+        if (filterCategory === "all") return;
+        if (!categoryOptions.includes(filterCategory)) {
+            setFilterCategory("all");
+        }
+    }, [filterCategory, categoryOptions]);
 
     if (loading) return (
         <div>
@@ -92,15 +136,30 @@ function SellRequestsContent({ sessionUser }: { sessionUser: { id: string; role:
                                 <input type="text" className="form-control border-start-0 ps-0" placeholder="Search by crop, district, email, or phone..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                             </div>
                         </div>
-                        <div className="col-md-3">
+                        <div className="col-md-2">
+                            <select
+                                className="form-select"
+                                value={filterGroup}
+                                onChange={(e) => {
+                                    setFilterGroup(e.target.value);
+                                    setFilterCategory("all");
+                                }}
+                            >
+                                <option value="all">All Groups</option>
+                                {groupOptions.map((group) => (
+                                    <option key={group} value={group}>{group}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="col-md-2">
                             <select className="form-select" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
                                 <option value="all">All Crops</option>
-                                {Array.from(new Set(requests.map(r => r.cropType))).filter(Boolean).map(cat => (
+                                {categoryOptions.map(cat => (
                                     <option key={cat} value={cat}>{cat}</option>
                                 ))}
                             </select>
                         </div>
-                        <div className="col-md-3">
+                        <div className="col-md-2">
                             <select className="form-select" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
                                 <option value="all">All Statuses</option>
                                 <option value="pending">Pending</option>
@@ -126,6 +185,8 @@ function SellRequestsContent({ sessionUser }: { sessionUser: { id: string; role:
                             <tbody>
                                 {(() => {
                                     const filteredRequests = requests.filter(req => {
+                                        const requestGroup = findGroupForCategory(categories, req.cropType);
+                                        if (filterGroup !== "all" && requestGroup !== filterGroup) return false;
                                         if (filterStatus !== "all" && req.status !== filterStatus) return false;
                                         if (filterCategory !== "all" && req.cropType !== filterCategory) return false;
                                         

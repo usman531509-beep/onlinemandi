@@ -4,6 +4,7 @@ import Image from "next/image";
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 
 import AdminShell from "@/components/panel/AdminShell";
+import { findGroupForCategory, getCategoryOptionsForGroup, getGroupOptions } from "@/lib/category-filters";
 
 type SessionUser = {
   id: string;
@@ -135,6 +136,7 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterGroup, setFilterGroup] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
 
   const [sellers, setSellers] = useState<{ id: string; fullName: string; businessName?: string }[]>([]);
@@ -142,6 +144,11 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
   const [onBehalfOfSellerId, setOnBehalfOfSellerId] = useState("");
 
   const categoryOptions = useMemo(() => categories.map((category) => category.name), [categories]);
+  const filterGroupOptions = useMemo(() => getGroupOptions(categories), [categories]);
+  const filterCategoryOptions = useMemo(
+    () => getCategoryOptionsForGroup(categories, filterGroup),
+    [categories, filterGroup]
+  );
 
   useEffect(() => {
     const sub = listingForm.subcategory;
@@ -218,6 +225,13 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
       return { ...prev, group: g, category: prev.category || getCategoryOptions(g)[0] || "" };
     });
   }, [categoryOptions, groupOptions, categories, getCategoryOptions]);
+
+  useEffect(() => {
+    if (filterCategory === "all") return;
+    if (!filterCategoryOptions.includes(filterCategory)) {
+      setFilterCategory("all");
+    }
+  }, [filterCategory, filterCategoryOptions]);
 
   const loadGroups = useCallback(async () => {
     try {
@@ -489,6 +503,8 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
 
   const filteredListings = useMemo(() => {
     return listings.filter((listing) => {
+      const listingGroup = listing.group || findGroupForCategory(categories, listing.category);
+      if (filterGroup !== "all" && listingGroup !== filterGroup) return false;
       if (filterCategory !== "all" && listing.category !== filterCategory) return false;
 
       if (searchQuery) {
@@ -501,7 +517,7 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
 
       return true;
     });
-  }, [listings, searchQuery, filterCategory]);
+  }, [categories, filterCategory, filterGroup, listings, searchQuery]);
 
   return (
     <>
@@ -563,12 +579,29 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
               <input type="text" className="form-control border-start-0 ps-0" placeholder="Search by title, city, or category..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>
           </div>
-          <div className="col-md-4">
+          <div className="col-md-2">
+            <select
+              className="form-select"
+              value={filterGroup}
+              onChange={(e) => {
+                setFilterGroup(e.target.value);
+                setFilterCategory("all");
+              }}
+            >
+              <option value="all">All Groups</option>
+              {filterGroupOptions.map((group) => (
+                <option key={group} value={group}>
+                  {group}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="col-md-2">
             <select className="form-select" value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}>
               <option value="all">All Categories</option>
-              {categories.map((cat) => (
-                <option key={cat.name} value={cat.name}>
-                  {cat.group ? `${cat.group} > ` : ""}{cat.name}
+              {filterCategoryOptions.map((category) => (
+                <option key={category} value={category}>
+                  {category}
                 </option>
               ))}
             </select>

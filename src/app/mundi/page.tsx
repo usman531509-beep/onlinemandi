@@ -6,10 +6,12 @@ import Link from "next/link";
 import Script from "next/script";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { findGroupForCategory, getCategoryOptionsForGroup, getGroupOptions } from "@/lib/category-filters";
 
 type Listing = {
   id: string;
   title: string;
+  group?: string;
   category: string;
   grade?: string;
   moisture?: string;
@@ -31,6 +33,7 @@ type Listing = {
 
 type Category = {
   id: string;
+  group?: string;
   name: string;
 };
 
@@ -41,6 +44,7 @@ export default function MundiPage() {
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
+  const [groupFilter, setGroupFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [cityFilter, setCityFilter] = useState("all");
   const [gradeFilter, setGradeFilter] = useState("all");
@@ -80,15 +84,24 @@ export default function MundiPage() {
       const desc = item.description?.toLowerCase() || "";
       const query = searchQuery.toLowerCase();
       const matchesSearch = title.includes(query) || desc.includes(query);
-      
+      const listingGroup = item.group || findGroupForCategory(categories, item.category);
+      const matchesGroup = groupFilter === "all" || listingGroup === groupFilter;
       const matchesCategory = categoryFilter === "all" || item.category === categoryFilter;
       const matchesCity = cityFilter === "all" || item.city === cityFilter;
       const matchesGrade = gradeFilter === "all" || (item.grade || "Unspecified") === gradeFilter;
       const matchesRole = roleFilter === "all" || item.createdBy?.role === roleFilter;
 
-      return matchesSearch && matchesCategory && matchesCity && matchesGrade && matchesRole;
+      return matchesSearch && matchesGroup && matchesCategory && matchesCity && matchesGrade && matchesRole;
     });
-  }, [listings, searchQuery, categoryFilter, cityFilter, gradeFilter, roleFilter]);
+  }, [categories, listings, searchQuery, groupFilter, categoryFilter, cityFilter, gradeFilter, roleFilter]);
+
+  const groupOptions = useMemo(() => {
+    return getGroupOptions(categories);
+  }, [categories]);
+
+  const categoryOptions = useMemo(() => {
+    return getCategoryOptionsForGroup(categories, groupFilter);
+  }, [categories, groupFilter]);
 
   const cityOptions = useMemo(() => {
     return Array.from(new Set(listings.map((l) => l.city))).sort();
@@ -100,11 +113,19 @@ export default function MundiPage() {
 
   const resetFilters = () => {
     setSearchQuery("");
+    setGroupFilter("all");
     setCategoryFilter("all");
     setCityFilter("all");
     setGradeFilter("all");
     setRoleFilter("all");
   };
+
+  useEffect(() => {
+    if (categoryFilter === "all") return;
+    if (!categoryOptions.includes(categoryFilter)) {
+      setCategoryFilter("all");
+    }
+  }, [categoryFilter, categoryOptions]);
 
   const FilterContent = () => (
     <>
@@ -128,6 +149,21 @@ export default function MundiPage() {
       </div>
 
       <div className="mb-4">
+        <label className="form-label small fw-bold text-muted text-uppercase">Group</label>
+        <select
+          className="form-select bg-light border-0"
+          value={groupFilter}
+          onChange={(e) => {
+            setGroupFilter(e.target.value);
+            setCategoryFilter("all");
+          }}
+        >
+          <option value="all">All Groups</option>
+          {groupOptions.map(group => <option key={group} value={group}>{group}</option>)}
+        </select>
+      </div>
+
+      <div className="mb-4">
         <label className="form-label small fw-bold text-muted text-uppercase">Category</label>
         <select 
           className="form-select bg-light border-0" 
@@ -135,7 +171,7 @@ export default function MundiPage() {
           onChange={(e) => setCategoryFilter(e.target.value)}
         >
           <option value="all">All Categories</option>
-          {categories.map(cat => <option key={cat.id} value={cat.name}>{cat.name}</option>)}
+          {categoryOptions.map(cat => <option key={cat} value={cat}>{cat}</option>)}
         </select>
       </div>
 

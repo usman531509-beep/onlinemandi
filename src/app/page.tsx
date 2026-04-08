@@ -6,11 +6,13 @@ import Image from "next/image";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { findGroupForCategory, getCategoryOptionsForGroup, getGroupOptions } from "@/lib/category-filters";
 
 
 type Listing = {
   id: string;
   title: string;
+  group?: string;
   category: string;
   grade?: string;
   moisture?: string;
@@ -32,6 +34,7 @@ type Listing = {
 
 type Category = {
   id: string;
+  group?: string;
   name: string;
 };
 
@@ -49,10 +52,12 @@ export default function Home() {
   const [activeSection, setActiveSection] = useState("home");
   const [listings, setListings] = useState<Listing[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [visibleHomeCategories, setVisibleHomeCategories] = useState<Category[]>([]);
   const [plans, setPlans] = useState<any[]>([]);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [activeSubscription, setActiveSubscription] = useState<any>(null);
 
+  const [groupFilter, setGroupFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [cityFilter, setCityFilter] = useState<string>("all");
   const [gradeFilter, setGradeFilter] = useState<string>("all");
@@ -79,14 +84,17 @@ export default function Home() {
         }
 
         if (categoriesRes.ok && categoriesJson.ok) {
-          let allCats = categoriesJson.categories || [];
+          const allCats = categoriesJson.categories || [];
+          let visibleCats = allCats;
           if (settingsJson.ok && settingsJson.setting?.value && settingsJson.setting.value.length > 0) {
             const allowedIds = settingsJson.setting.value;
-            allCats = allCats.filter((cat: Category) => allowedIds.includes(cat.id));
+            visibleCats = allCats.filter((cat: Category) => allowedIds.includes(cat.id));
           }
           setCategories(allCats);
+          setVisibleHomeCategories(visibleCats);
         } else {
           setCategories([]);
+          setVisibleHomeCategories([]);
         }
 
         if (plansRes.ok && plansJson.ok) {
@@ -97,6 +105,7 @@ export default function Home() {
       } catch (err) {
         setListings([]);
         setCategories([]);
+        setVisibleHomeCategories([]);
         setPlans([]);
       }
     };
@@ -126,12 +135,14 @@ export default function Home() {
 
   const filteredProducts = useMemo(() => {
     return listings.filter((product) => {
+      const productGroup = product.group || findGroupForCategory(categories, product.category);
+      const matchesGroup = groupFilter === "all" || productGroup === groupFilter;
       const matchesCategory = categoryFilter === "all" || product.category === categoryFilter;
       const matchesCity = cityFilter === "all" || product.city === cityFilter;
       const matchesGrade = gradeFilter === "all" || (product.grade || "Unspecified") === gradeFilter;
-      return matchesCategory && matchesCity && matchesGrade;
+      return matchesGroup && matchesCategory && matchesCity && matchesGrade;
     });
-  }, [categoryFilter, cityFilter, gradeFilter, listings]);
+  }, [categories, categoryFilter, cityFilter, gradeFilter, groupFilter, listings]);
 
   const handleSubscribe = async (planId: string) => {
     setCheckoutLoading(planId);
@@ -173,9 +184,11 @@ export default function Home() {
   };
 
 
+  const groupOptions = useMemo(() => getGroupOptions(categories), [categories]);
+
   const categoryOptions = useMemo(() => {
-    return Array.from(new Set(categories.map((category) => category.name))).sort();
-  }, [categories]);
+    return getCategoryOptionsForGroup(categories, groupFilter);
+  }, [categories, groupFilter]);
 
   const cityOptions = useMemo(() => {
     return Array.from(new Set(listings.map((listing) => listing.city))).sort();
@@ -192,6 +205,7 @@ export default function Home() {
 
   const filterByCategory = (category: string) => {
     setActiveSection("home");
+    setGroupFilter(findGroupForCategory(categories, category) || "all");
     setCategoryFilter(category);
     setCityFilter("all");
     setGradeFilter("all");
@@ -213,6 +227,13 @@ export default function Home() {
       }
     }
   }, []);
+
+  useEffect(() => {
+    if (categoryFilter === "all") return;
+    if (!categoryOptions.includes(categoryFilter)) {
+      setCategoryFilter("all");
+    }
+  }, [categoryFilter, categoryOptions]);
 
   return (
     <>
@@ -248,7 +269,7 @@ export default function Home() {
         <div className="container my-5">
           <h3 className="text-center fw-bold mb-4">Bulk Trading Categories</h3>
           <div className="row g-3 text-center">
-            {categories.map((category) => (
+            {visibleHomeCategories.map((category) => (
               <div className="col-6 col-md-2" key={category.id}>
                 <button
                   type="button"
@@ -280,7 +301,26 @@ export default function Home() {
             <div className="card border-0 shadow-sm mb-4">
               <div className="card-body">
                 <div className="row g-3">
-                  <div className="col-md-4">
+                  <div className="col-md-3">
+                    <label className="form-label fw-bold">Group</label>
+                    <select
+                      id="filter-group"
+                      className="form-select"
+                      value={groupFilter}
+                      onChange={(event) => {
+                        setGroupFilter(event.target.value);
+                        setCategoryFilter("all");
+                      }}
+                    >
+                      <option value="all">All Groups</option>
+                      {groupOptions.map((group) => (
+                        <option key={group} value={group}>
+                          {group}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-md-3">
                     <label className="form-label fw-bold">Category</label>
                     <select
                       id="filter-category"
@@ -296,7 +336,7 @@ export default function Home() {
                       ))}
                     </select>
                   </div>
-                  <div className="col-md-4">
+                  <div className="col-md-3">
                     <label className="form-label fw-bold">City</label>
                     <select
                       id="filter-city"
@@ -312,7 +352,7 @@ export default function Home() {
                       ))}
                     </select>
                   </div>
-                  <div className="col-md-4">
+                  <div className="col-md-3">
                     <label className="form-label fw-bold">Grade</label>
                     <select
                       id="filter-grade"

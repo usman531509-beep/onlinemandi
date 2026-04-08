@@ -213,8 +213,17 @@ export async function GET(request: Request) {
     }
 
     if (currentUser.role === "buyer") {
-      const myRequirementsCount = await Broadcast.countDocuments({ buyerId: userId });
-      const globalListings = await Listing.countDocuments({});
+      const [myRequirementsCount, dealsClosed, globalListings, paymentsData] = await Promise.all([
+        Broadcast.countDocuments({ buyerId: userId }),
+        Broadcast.countDocuments({ buyerId: userId, status: "closed" }),
+        Listing.countDocuments({}),
+        PaymentTransaction.aggregate([
+          { $match: { userEmail: currentUser.email?.toLowerCase(), status: "completed" } },
+          { $group: { _id: null, total: { $sum: "$amount" } } }
+        ])
+      ]);
+
+      const totalSpent = paymentsData.length > 0 ? paymentsData[0].total : 0;
 
       // Self-healing for broadcasts
       let used = currentUser.broadcastsUsedCount || 0;
@@ -228,6 +237,8 @@ export async function GET(request: Request) {
         stats: {
           myRequirements: used,
           globalListings,
+          dealsClosed,
+          totalSpent,
           freeListingLimit
         }
       });

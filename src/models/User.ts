@@ -80,9 +80,4 @@ const userSchema = new Schema<UserDocument>(
   { timestamps: true }
 );
 
-if (mongoose.models.User) {
-  delete mongoose.models.User;
-}
-const User = mongoose.model<UserDocument>("User", userSchema);
-
-export default User;
+export default mongoose.models.User || mongoose.model<UserDocument>("User", userSchema);

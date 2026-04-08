@@ -407,7 +407,7 @@ export default function ListingDetailPage() {
                                     </div>
 
                                     {canSeeContact && listing.createdBy?.phoneNumber ? (
-                                        <div className="mt-4 pt-2 border-top">
+                                        <div className="mt-4 pt-2 border-top btn-mundi:hover ">
                                             <a
                                                 href={`https://wa.me/${listing.createdBy.phoneNumber.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`I am interested in ${listing.title}`)}`}
                                                 target="_blank"
@@ -729,7 +729,7 @@ export default function ListingDetailPage() {
           box-shadow: 0 2px 8px rgba(25, 135, 84, 0.25);
         }
 
-        .btn-mandi {
+        .btn-mundi {
           background-color: #1b4332;
           color: white;
           border: none;
@@ -737,7 +737,7 @@ export default function ListingDetailPage() {
           border-radius: 8px;
         }
 
-        .btn-mandi:hover {
+        .btn-mundi:hover {
           background-color: #081c15;
           color: white;
         }

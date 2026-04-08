@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ChangeEvent, FormEvent, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { findGroupForCategory, getCategoryOptionsForGroup, getGroupOptions } from "@/lib/category-filters";
 
 type UserRole = "admin" | "buyer" | "seller";
 
@@ -83,6 +84,8 @@ type Stats = {
   totalRequests?: number;
   myRequirements?: number;
   globalListings?: number;
+  dealsClosed?: number;
+  totalSpent?: number;
   freeListingLimit?: number;
   freeListingsUsed?: number;
   paidListingsUsed?: number;
@@ -102,6 +105,7 @@ type BroadcastItem = {
   buyerName: string;
   buyerPhone: string;
   buyerEmail: string;
+  group?: string;
   category: string;
   grade: string;
   requirementDetails: string;
@@ -253,6 +257,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
   const [isLoadingListings, setIsLoadingListings] = useState(false);
   const [listingsMessage, setListingsMessage] = useState("");
   const [listingsSearch, setListingsSearch] = useState("");
+  const [listingsFilterGroup, setListingsFilterGroup] = useState("all");
   const [listingsFilterCategory, setListingsFilterCategory] = useState("all");
 
   const [categories, setCategories] = useState<Category[]>([]);
@@ -338,6 +343,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
   const [isLoadingBroadcasts, setIsLoadingBroadcasts] = useState(false);
   const [broadcastsMessage, setBroadcastsMessage] = useState("");
   const [broadcastsSearch, setBroadcastsSearch] = useState("");
+  const [broadcastsFilterGroup, setBroadcastsFilterGroup] = useState("all");
   const [broadcastsFilterCategory, setBroadcastsFilterCategory] = useState("all");
   const [broadcastsFilterStatus, setBroadcastsFilterStatus] = useState("all");
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
@@ -474,6 +480,16 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
     return categories.map((category) => category.name);
   }, [categories]);
 
+  const filterGroupOptions = useMemo(() => getGroupOptions(categories), [categories]);
+
+  const listingsFilterCategoryOptions = useMemo(() => {
+    return getCategoryOptionsForGroup(categories, listingsFilterGroup);
+  }, [categories, listingsFilterGroup]);
+
+  const broadcastsFilterCategoryOptions = useMemo(() => {
+    return getCategoryOptionsForGroup(categories, broadcastsFilterGroup);
+  }, [categories, broadcastsFilterGroup]);
+
   const findHierarchy = useCallback((categoryName: string) => {
     for (const cat of categories) {
       if (cat.name === categoryName) return { category: cat.name, sub: "", child: "" };
@@ -546,6 +562,20 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
       return { ...prev, category: validCategories[0] || "", subcategory: "", childCategory: "" };
     });
   }, [groupOptions, categories]);
+
+  useEffect(() => {
+    if (listingsFilterCategory === "all") return;
+    if (!listingsFilterCategoryOptions.includes(listingsFilterCategory)) {
+      setListingsFilterCategory("all");
+    }
+  }, [listingsFilterCategory, listingsFilterCategoryOptions]);
+
+  useEffect(() => {
+    if (broadcastsFilterCategory === "all") return;
+    if (!broadcastsFilterCategoryOptions.includes(broadcastsFilterCategory)) {
+      setBroadcastsFilterCategory("all");
+    }
+  }, [broadcastsFilterCategory, broadcastsFilterCategoryOptions]);
 
 
   useEffect(() => {
@@ -712,7 +742,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
       if (response.ok && data.ok) {
         setPayments(data.payments || []);
       } else {
-        setPaymentsMessage("Failed to load payments.");
+        setPaymentsMessage(data.message || "Failed to load payments.");
       }
     } catch {
       setPaymentsMessage("Network error while loading payments.");
@@ -1446,7 +1476,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                         } else if (role === "buyer") {
                           displayCards[0] = { label: "My Requirements", value: String(stats.myRequirements || 0), className: "stat-soft-green" };
                           displayCards[1] = { label: "Total Marketplace", value: String(stats.globalListings || 0), className: "stat-soft-blue" };
-                          // No third card for buyer for now, or keep placeholder
+                          displayCards[2] = { label: "Deals Closed", value: String(stats.dealsClosed || 0), className: "stat-soft-amber" };
                         }
                       }
                       
@@ -1980,12 +2010,29 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                         <input type="text" className="form-control border-start-0 ps-0" placeholder="Search by title or city..." value={listingsSearch} onChange={(e) => setListingsSearch(e.target.value)} />
                       </div>
                     </div>
-                    <div className="col-md-4">
+                    <div className="col-md-2">
+                      <select
+                        className="form-select"
+                        value={listingsFilterGroup}
+                        onChange={(e) => {
+                          setListingsFilterGroup(e.target.value);
+                          setListingsFilterCategory("all");
+                        }}
+                      >
+                        <option value="all">All Groups</option>
+                        {filterGroupOptions.map((group) => (
+                          <option key={group} value={group}>
+                            {group}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="col-md-2">
                       <select className="form-select" value={listingsFilterCategory} onChange={(e) => setListingsFilterCategory(e.target.value)}>
                         <option value="all">All Categories</option>
-                        {categories.map((c) => (
-                          <option key={c.name} value={c.name}>
-                            {c.group ? `${c.group} > ` : ""}{c.name}
+                        {listingsFilterCategoryOptions.map((category) => (
+                          <option key={category} value={category}>
+                            {category}
                           </option>
                         ))}
                       </select>
@@ -1995,6 +2042,8 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                   <section className="card border shadow-sm rounded-4 p-0 overflow-hidden bg-white">
                     {(() => {
                         const filteredListings = listings.filter(listing => {
+                            const listingGroup = listing.group || findGroupForCategory(categories, listing.category);
+                            if (listingsFilterGroup !== "all" && listingGroup !== listingsFilterGroup) return false;
                             if (listingsFilterCategory !== "all" && listing.category !== listingsFilterCategory) return false;
                             if (listingsSearch) {
                                 const query = listingsSearch.toLowerCase();
@@ -2418,17 +2467,34 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                   {broadcastsMessage && <div className="alert alert-info py-2 rounded-3">{broadcastsMessage}</div>}
 
                   <div className="row g-3 mb-4">
-                    <div className="col-md-6">
+                    <div className="col-md-4">
                       <div className="input-group">
                         <span className="input-group-text bg-white border-end-0"><i className="fa-solid fa-search text-muted"></i></span>
                         <input type="text" className="form-control border-start-0 ps-0" placeholder="Search by details, city, or buyer name..." value={broadcastsSearch} onChange={(e) => setBroadcastsSearch(e.target.value)} />
                       </div>
                     </div>
+                    <div className="col-md-2">
+                      <select
+                        className="form-select"
+                        value={broadcastsFilterGroup}
+                        onChange={(e) => {
+                          setBroadcastsFilterGroup(e.target.value);
+                          setBroadcastsFilterCategory("all");
+                        }}
+                      >
+                        <option value="all">All Groups</option>
+                        {filterGroupOptions.map((group) => (
+                          <option key={group} value={group}>
+                            {group}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                     <div className="col-md-3">
                       <select className="form-select" value={broadcastsFilterCategory} onChange={(e) => setBroadcastsFilterCategory(e.target.value)}>
                         <option value="all">All Categories</option>
-                        {categories.map((c) => (
-                          <option key={c.name} value={c.name}>{c.name}</option>
+                        {broadcastsFilterCategoryOptions.map((category) => (
+                          <option key={category} value={category}>{category}</option>
                         ))}
                       </select>
                     </div>
@@ -2444,6 +2510,8 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
 
                   {(() => {
                       const filteredBroadcasts = broadcasts.filter((b) => {
+                          const broadcastGroup = b.group || findGroupForCategory(categories, b.category);
+                          if (broadcastsFilterGroup !== "all" && broadcastGroup !== broadcastsFilterGroup) return false;
                           if (broadcastsFilterCategory !== "all" && b.category !== broadcastsFilterCategory) return false;
                           if (broadcastsFilterStatus !== "all" && b.status !== broadcastsFilterStatus) return false;
                           if (broadcastsSearch) {
@@ -2748,7 +2816,6 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                       </select>
                     </div>
                     <div className="col-md-6">
-                      <span className="fw-bold text-success fs-5">Online<span className="text-dark">Mundi</span></span>
                       <label className="form-label fw-semibold">Grade <span className="text-danger">*</span></label>
                       <input
                         type="text"
