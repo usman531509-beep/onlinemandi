@@ -56,7 +56,7 @@ const categorySubSchema = new Schema(
 const categorySchema = new Schema<CategoryDocument>(
   {
     group: { type: String, required: true, default: "General", trim: true },
-    name: { type: String, required: true, unique: true, trim: true },
+    name: { type: String, required: true, trim: true },
     description: { type: String, trim: true },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
     subcategories: { type: [categorySubSchema], default: [] },

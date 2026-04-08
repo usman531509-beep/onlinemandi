@@ -178,10 +178,14 @@ export async function POST(request: Request) {
     }
     const finalGroupName = groupExists.name; // Use the exact name from the database
 
-    const exists = await Category.findOne({ name: new RegExp(`^${name}$`, "i") });
+    const exists = await Category.findOne({ 
+        name: new RegExp(`^${name}$`, "i"),
+        group: finalGroupName
+    });
+
     if (exists) {
       return NextResponse.json(
-        { ok: false, message: `Category '${name}' already exists in group '${exists.group || "Uncategorized"}'.` },
+        { ok: false, message: `Category '${name}' already exists in the group '${finalGroupName}'.` },
         { status: 409 }
       );
     }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import Group from "@/models/Group";
+import Category from "@/models/Category";
 import User, { UserRole } from "@/models/User";
 
 type GroupRole = UserRole;
@@ -22,6 +23,24 @@ export async function GET(request: Request) {
       return NextResponse.json({ ok: false, message: "Unauthorized." }, { status: 403 });
     }
 
+    // AUTO-FIX: Check if there are any groups used in Categories that are missing from Group collection
+    const categoryGroups = await Category.distinct("group");
+    const existingGroups = await Group.find();
+    const existingGroupNames = new Set(existingGroups.map(g => g.name.toLowerCase()));
+
+    for (const catGroupName of categoryGroups) {
+        if (catGroupName && !existingGroupNames.has(catGroupName.toLowerCase())) {
+            // Create the missing group
+            await Group.create({
+                name: catGroupName,
+                description: "Auto-generated from existing categories",
+                createdBy: user._id
+            });
+            console.log(`Auto-created missing group: ${catGroupName}`);
+        }
+    }
+
+    // Re-fetch all groups after potentially auto-creating missing ones
     const groups = await Group.find().sort({ createdAt: -1 });
 
     return NextResponse.json({
