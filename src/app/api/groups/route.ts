@@ -40,6 +40,19 @@ export async function GET(request: Request) {
         }
     }
 
+    // AUTO-FIX: Assign groupless categories to the first available group
+    const firstGroup = existingGroups[0] || await Group.findOne().sort({ createdAt: 1 });
+    if (firstGroup) {
+      const orphaned = await Category.countDocuments({ $or: [{ group: "" }, { group: null }, { group: { $exists: false } }] });
+      if (orphaned > 0) {
+        await Category.updateMany(
+          { $or: [{ group: "" }, { group: null }, { group: { $exists: false } }] },
+          { $set: { group: firstGroup.name } }
+        );
+        console.log(`Auto-assigned ${orphaned} groupless categories to group: ${firstGroup.name}`);
+      }
+    }
+
     // Re-fetch all groups after potentially auto-creating missing ones
     const groups = await Group.find().sort({ createdAt: -1 });
 
