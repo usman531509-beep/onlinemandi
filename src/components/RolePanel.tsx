@@ -5,6 +5,7 @@ import Image from "next/image";
 import { ChangeEvent, FormEvent, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { findGroupForCategory, getCategoryOptionsForGroup, getGroupOptions } from "@/lib/category-filters";
+import { useTranslation } from "@/lib/i18n";
 
 type UserRole = "admin" | "buyer" | "seller";
 
@@ -249,6 +250,7 @@ function SubscriptionParamsHandler({
 export default function RolePanel({ role, title, subtitle, cards }: RolePanelProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { t } = useTranslation();
   const [sessionUser, setSessionUser] = useState<SessionUser | null>(null);
   const [isSessionReady, setIsSessionReady] = useState(false);
 
@@ -472,7 +474,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
 
   const getCategoryOptions = (groupName: string) => {
     return categories
-      .filter((category) => (category.group || "Crops").toLowerCase() === groupName.toLowerCase())
+      .filter((category) => (category.group || "").toLowerCase() === groupName.toLowerCase())
       .map((category) => category.name);
   };
 
@@ -1119,7 +1121,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
 
     setEditingListingId(listing.id);
     setEditForm({
-      group: listing.group || "General",
+      group: listing.group || "",
       title: listing.title,
       category: hierarchy.category,
       subcategory: hierarchy.sub,
@@ -1228,22 +1230,22 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
   const navItems =
     role === "seller"
       ? [
-        { id: "overview", label: "Dashboard Overview", icon: "fa-solid fa-chart-line", href: "/seller/panel" },
-        { id: "profile", label: "Verification Profile", icon: "fa-solid fa-id-card", href: "/seller/panel/profile" },
-        { id: "listings", label: "My Crop Listings", icon: "fa-solid fa-wheat-awn", href: "/seller/panel/listings" },
-        { id: "broadcastings", label: "Buyer Broadcastings", icon: "fa-solid fa-tower-broadcast", href: "/seller/panel/broadcastings" },
-        { id: "payments", label: "My Payments", icon: "fa-solid fa-file-invoice-dollar", href: "/seller/panel/payments" },
+        { id: "overview", label: t("panel.overview"), icon: "fa-solid fa-chart-line", href: "/seller/panel" },
+        { id: "profile", label: t("panel.profile"), icon: "fa-solid fa-id-card", href: "/seller/panel/profile" },
+        { id: "listings", label: t("panel.myListings"), icon: "fa-solid fa-wheat-awn", href: "/seller/panel/listings" },
+        { id: "broadcastings", label: t("panel.myBroadcastings"), icon: "fa-solid fa-tower-broadcast", href: "/seller/panel/broadcastings" },
+        { id: "payments", label: t("panel.myPayments"), icon: "fa-solid fa-file-invoice-dollar", href: "/seller/panel/payments" },
       ]
       : role === "buyer"
         ? [
-          { id: "overview", label: "Buyer Dashboard", icon: "fa-solid fa-chart-line", href: "/buyer/panel" },
-          { id: "broadcastings", label: "My Broadcastings", icon: "fa-solid fa-bullhorn", href: "/buyer/panel/broadcastings" },
-          { id: "payments", label: "My Payments", icon: "fa-solid fa-file-invoice-dollar", href: "/buyer/panel/payments" },
+          { id: "overview", label: t("panel.overview"), icon: "fa-solid fa-chart-line", href: "/buyer/panel" },
+          { id: "broadcastings", label: t("panel.myBroadcastings"), icon: "fa-solid fa-bullhorn", href: "/buyer/panel/broadcastings" },
+          { id: "payments", label: t("panel.myPayments"), icon: "fa-solid fa-file-invoice-dollar", href: "/buyer/panel/payments" },
         ]
         : [
-          { id: "overview", label: "System Overview", icon: "fa-solid fa-server", href: "/admin/panel" },
-          { id: "categories", label: "Manage Categories", icon: "fa-solid fa-layer-group", href: "/admin/panel/categories" },
-          { id: "settings", label: "System Settings", icon: "fa-solid fa-gear", href: "/admin/panel/settings" },
+          { id: "overview", label: t("panel.systemOverview"), icon: "fa-solid fa-server", href: "/admin/panel" },
+          { id: "categories", label: t("panel.manageCategories"), icon: "fa-solid fa-layer-group", href: "/admin/panel/categories" },
+          { id: "settings", label: t("panel.settings"), icon: "fa-solid fa-gear", href: "/admin/panel/settings" },
         ];
 
   return (
@@ -1578,10 +1580,10 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                         <h2 className="h4 fw-bold mb-1">{listingTitle}</h2>
                         <p className="text-muted mb-0">
                           {role === "admin"
-                            ? "Create listings and monitor all sellers in one place."
+                            ? t("admin.subtitle")
                             : role === "seller"
-                              ? "Create and track your own crop listings."
-                              : "Browse marketplace listings posted by sellers and admins."}
+                              ? t("seller.subtitle")
+                              : t("buyer.subtitle")}
                         </p>
                       </div>
                       <div className="d-flex gap-2 flex-wrap">
@@ -1599,11 +1601,11 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                               setShowUpgradeModal(true);
                             }
                           }}>
-                            <i className="fa-solid fa-plus me-2"></i>Create Listing
+                            <i className="fa-solid fa-plus me-2"></i>{t("panel.createListing")}
                           </button>
                         )}
                         <button className="btn btn-outline-success" onClick={() => void loadListings()}>
-                          <i className="fa-solid fa-rotate-right me-2"></i>Refresh
+                          <i className="fa-solid fa-rotate-right me-2"></i>{t("panel.refresh")}
                         </button>
                       </div>
                     </div>
@@ -1616,7 +1618,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                           <div className="d-flex justify-content-between align-items-center mb-4">
                             <div className="d-flex align-items-center gap-2">
                               <i className="fa-solid fa-plus-circle" style={{ color: "#2a5d49" }}></i>
-                              <h3 className="h5 fw-bold mb-0" style={{ color: "#1b4332" }}>Create New Listing</h3>
+                              <h3 className="h5 fw-bold mb-0" style={{ color: "#1b4332" }}>{t("panel.createNewListing")}</h3>
                             </div>
                             <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => setShowCreateListingModal(false)}>
                               <i className="fa-solid fa-xmark"></i>
@@ -1626,7 +1628,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                                 <div className="row g-3">
                                   {/* Title is auto-generated */}
                                   <div className="col-md-6">
-                                <label className="form-label">Group</label>
+                                <label className="form-label">{t("panel.group")}</label>
                                 <select
                                   className="form-select"
                                   value={listingForm.group}
@@ -1647,7 +1649,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                                 </select>
                               </div>
                               <div className="col-md-4">
-                                <label className="form-label">Category</label>
+                                <label className="form-label">{t("panel.category")}</label>
                                 <select
                                   className="form-select"
                                   value={listingForm.category}
@@ -1659,31 +1661,31 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                                   }}
                                   disabled={!getCategoryOptions(listingForm.group).length}
                                 >
-                                  <option value="">Select Category</option>
+                                  <option value="">{t("panel.selectCategory")}</option>
                                   {getCategoryOptions(listingForm.group).map((option) => <option key={option}>{option}</option>)}
                                 </select>
                               </div>
                               <div className="col-md-4">
-                                <label className="form-label">Subcategory</label>
+                                <label className="form-label">{t("panel.subcategory")}</label>
                                 <select
                                   className="form-select"
                                   value={listingForm.subcategory}
                                   disabled={!listingForm.category || getSubcategoryOptions(listingForm.category).length === 0}
                                   onChange={(event) => setListingForm((prev) => ({ ...prev, subcategory: event.target.value, childCategory: "" }))}
                                 >
-                                  <option value="">Select Subcategory</option>
+                                  <option value="">{t("panel.selectSubcategory")}</option>
                                   {getSubcategoryOptions(listingForm.category).map((option) => <option key={option}>{option}</option>)}
                                 </select>
                               </div>
                               <div className="col-md-4">
-                                <label className="form-label">Child Category</label>
+                                <label className="form-label">{t("panel.childCategory")}</label>
                                 <select
                                   className="form-select"
                                   value={listingForm.childCategory}
                                   disabled={!listingForm.subcategory || getChildCategoryOptions(listingForm.category, listingForm.subcategory).length === 0}
                                   onChange={(event) => setListingForm((prev) => ({ ...prev, childCategory: event.target.value }))}
                                 >
-                                  <option value="">Select Child Category</option>
+                                  <option value="">{t("panel.selectChildCategory")}</option>
                                   {getChildCategoryOptions(listingForm.category, listingForm.subcategory).map((option) => <option key={option}>{option}</option>)}
                                 </select>
                               </div>
@@ -1704,7 +1706,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                                 ));
                               })()}
                               <div className="col-md-4">
-                                <label className="form-label">City</label>
+                                <label className="form-label">{t("panel.city")}</label>
                                 <input
                                   className="form-control"
                                   required
@@ -1713,7 +1715,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                                 />
                               </div>
                               <div className="col-md-4">
-                                <label className="form-label">Quantity</label>
+                                <label className="form-label">{t("panel.quantity")}</label>
                                 <div className="input-group">
                                   <input
                                     className="form-control"
@@ -1745,7 +1747,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                                 </div>
                               </div>
                               <div className="col-md-4">
-                                <label className="form-label">Price / Maund</label>
+                                <label className="form-label">{t("panel.pricePerMaund")}</label>
                                 <input
                                   className="form-control"
                                   type="number"
@@ -1757,7 +1759,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                                 />
                               </div>
                               <div className="col-12">
-                                <label className="form-label">Description</label>
+                                <label className="form-label">{t("panel.description")}</label>
                                 <textarea
                                   className="form-control"
                                   rows={3}
@@ -1770,7 +1772,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
 
 
                               <div className="col-12">
-                                <label className="form-label">Upload Images (multiple)</label>
+                                <label className="form-label">{t("panel.uploadImages")}</label>
                                 <input
                                   type="file"
                                   className="form-control"
@@ -1805,7 +1807,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                               </div>
                               <div className="col-12">
                                 <button className="btn btn-success px-4" type="submit" disabled={isCreatingListing}>
-                                  {isCreatingListing ? "Creating..." : "Create Listing"}
+                                  {isCreatingListing ? t("panel.creating") : t("panel.createListing")}
                                 </button>
                               </div>
                             </div>
@@ -1827,7 +1829,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                         <div className="row g-3">
                           {/* Title is auto-generated */}
                           <div className="col-md-6">
-                            <label className="form-label">Group</label>
+                            <label className="form-label">{t("panel.group")}</label>
                             <select
                               className="form-select"
                               value={editForm.group}
@@ -1847,38 +1849,38 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                             </select>
                           </div>
                           <div className="col-md-4">
-                            <label className="form-label">Category</label>
+                            <label className="form-label">{t("panel.category")}</label>
                             <select
                               className="form-select"
                               value={editForm.category}
                               onChange={(event) => setEditForm((prev) => ({ ...prev, category: event.target.value, subcategory: "", childCategory: "" }))}
                               disabled={!getCategoryOptions(editForm.group).length}
                             >
-                              <option value="">Select Category</option>
+                              <option value="">{t("panel.selectCategory")}</option>
                               {getCategoryOptions(editForm.group).map((option) => <option key={option}>{option}</option>)}
                             </select>
                           </div>
                           <div className="col-md-4">
-                            <label className="form-label">Subcategory</label>
+                            <label className="form-label">{t("panel.subcategory")}</label>
                             <select
                               className="form-select"
                               value={editForm.subcategory}
                               disabled={!editForm.category || getSubcategoryOptions(editForm.category).length === 0}
                               onChange={(event) => setEditForm((prev) => ({ ...prev, subcategory: event.target.value, childCategory: "" }))}
                             >
-                              <option value="">Select Subcategory</option>
+                              <option value="">{t("panel.selectSubcategory")}</option>
                               {getSubcategoryOptions(editForm.category).map((option) => <option key={option}>{option}</option>)}
                             </select>
                           </div>
                           <div className="col-md-4">
-                            <label className="form-label">Child Category</label>
+                            <label className="form-label">{t("panel.childCategory")}</label>
                             <select
                               className="form-select"
                               value={editForm.childCategory}
                               disabled={!editForm.subcategory || getChildCategoryOptions(editForm.category, editForm.subcategory).length === 0}
                               onChange={(event) => setEditForm((prev) => ({ ...prev, childCategory: event.target.value }))}
                             >
-                              <option value="">Select Child Category</option>
+                              <option value="">{t("panel.selectChildCategory")}</option>
                               {getChildCategoryOptions(editForm.category, editForm.subcategory).map((option) => <option key={option}>{option}</option>)}
                             </select>
                           </div>
@@ -1899,7 +1901,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                             ));
                           })()}
                           <div className="col-md-4">
-                            <label className="form-label">City</label>
+                            <label className="form-label">{t("panel.city")}</label>
                             <input
                               className="form-control"
                               required
@@ -1908,7 +1910,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                             />
                           </div>
                           <div className="col-md-4">
-                            <label className="form-label">Quantity</label>
+                            <label className="form-label">{t("panel.quantity")}</label>
                             <div className="input-group">
                               <input
                                 className="form-control"
@@ -1939,7 +1941,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                             </div>
                           </div>
                           <div className="col-md-4">
-                            <label className="form-label">Price / Maund</label>
+                            <label className="form-label">{t("panel.pricePerMaund")}</label>
                             <input
                               className="form-control"
                               type="number"
@@ -1948,7 +1950,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                               onChange={(event) => setEditForm((prev) => ({ ...prev, pricePerMaund: event.target.value }))}
                             />
                           </div>
-                          <label className="form-label">Description</label>
+                          <label className="form-label">{t("panel.description")}</label>
                           <textarea
                             className="form-control"
                             rows={3}
@@ -2055,7 +2057,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                         });
 
                         if (isLoadingListings) {
-                          return <div className="p-4 text-center text-muted">Loading listings...</div>;
+                          return <div className="p-4 text-center text-muted">{t("panel.loadingListings")}</div>;
                         }
                         if (filteredListings.length === 0) {
                           return <div className="p-4 text-center text-muted">No listings found.</div>;
@@ -2136,7 +2138,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                   <section className="card border shadow-sm rounded-4 p-4 mb-4 bg-white">
                     <div className="d-flex justify-content-between align-items-start flex-wrap gap-3">
                       <div>
-                        <h2 className="h4 fw-bold mb-1">Seller Verification Profile</h2>
+                        <h2 className="h4 fw-bold mb-1">{t("profile.title")}</h2>
                         <p className="text-muted mb-0">
                           Upload identity documents and business details for admin verification.
                         </p>
@@ -2160,7 +2162,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                     <form onSubmit={onSaveProfile}>
                       <div className="row g-3">
                         <div className="col-md-6">
-                          <label className="form-label">Business / Farm Name</label>
+                          <label className="form-label">{t("profile.businessName")}</label>
                           <input
                             className="form-control"
                             value={profileForm.businessName}
@@ -2170,7 +2172,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                           />
                         </div>
                          <div className="col-md-6">
-                           <label className="form-label">CNIC / Identity Number</label>
+                           <label className="form-label">{t("profile.cnicNumber")}</label>
                            <input
                              className="form-control"
                              placeholder="XXXXX-XXXXXXX-X"
@@ -2181,7 +2183,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                            />
                          </div>
                          <div className="col-md-6">
-                           <label className="form-label">Registered Mobile Number</label>
+                           <label className="form-label">{t("profile.mobileNumber")}</label>
                            <input
                              className="form-control"
                              placeholder="XXXX-XXXXXXX"
@@ -2192,7 +2194,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                            />
                          </div>
                         <div className="col-md-6">
-                          <label className="form-label">City</label>
+                          <label className="form-label">{t("panel.city")}</label>
                           <input
                             className="form-control"
                             value={profileForm.city}
@@ -2200,7 +2202,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                           />
                         </div>
                         <div className="col-md-6">
-                          <label className="form-label">Address</label>
+                          <label className="form-label">{t("profile.address")}</label>
                           <input
                             className="form-control"
                             value={profileForm.address}
@@ -2270,7 +2272,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                         </div>
 
                         <div className="col-12">
-                          <label className="form-label">Additional Information</label>
+                          <label className="form-label">{t("profile.additionalInfo")}</label>
                           <textarea
                             className="form-control"
                             rows={3}
@@ -2336,20 +2338,20 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                 <>
                   <section className="card border shadow-sm rounded-4 p-4 mb-4 bg-white">
                     <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-3">
-                      <h2 className="h4 fw-bold mb-0">Categories Management</h2>
+                      <h2 className="h4 fw-bold mb-0">{t("categories.title")}</h2>
                       <button className="btn btn-outline-success" onClick={() => void loadCategories()}>
                         <i className="fa-solid fa-rotate-right me-2"></i>Refresh
                       </button>
                     </div>
-                    <p className="text-muted mb-0">Create and manage crop categories available for listings.</p>
+                    <p className="text-muted mb-0">{t("categories.subtitle")}</p>
                   </section>
 
                   <section className="card border shadow-sm rounded-4 p-4 mb-4 bg-white">
-                    <h3 className="h5 fw-bold mb-3">Create Category</h3>
+                    <h3 className="h5 fw-bold mb-3">{t("categories.create")}</h3>
                     <form onSubmit={onCreateCategory}>
                       <div className="row g-3">
                         <div className="col-md-5">
-                          <label className="form-label">Category Name</label>
+                          <label className="form-label">{t("categories.categoryName")}</label>
                           <input
                             className="form-control"
                             placeholder="e.g. Oil Seeds"
@@ -2359,7 +2361,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                           />
                         </div>
                         <div className="col-md-7">
-                          <label className="form-label">Description</label>
+                          <label className="form-label">{t("panel.description")}</label>
                           <input
                             className="form-control"
                             placeholder="Optional short description"
@@ -2369,7 +2371,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                         </div>
                         <div className="col-12">
                           <button className="btn btn-success" type="submit" disabled={isCreatingCategory}>
-                            {isCreatingCategory ? "Creating..." : "Create Category"}
+                            {isCreatingCategory ? t("panel.creating") : t("categories.create")}
                           </button>
                         </div>
                       </div>
@@ -2921,7 +2923,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                 <form onSubmit={onUpdateCategory}>
                   <div className="row g-3">
                     <div className="col-md-5">
-                      <label className="form-label">Category Name</label>
+                      <label className="form-label">{t("categories.categoryName")}</label>
                       <input
                         className="form-control"
                         required
@@ -2930,7 +2932,7 @@ export default function RolePanel({ role, title, subtitle, cards }: RolePanelPro
                       />
                     </div>
                     <div className="col-md-7">
-                      <label className="form-label">Description</label>
+                      <label className="form-label">{t("panel.description")}</label>
                       <input
                         className="form-control"
                         value={editCategoryDescription}

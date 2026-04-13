@@ -10,7 +10,7 @@ export type CategoryFilterItem = {
 };
 
 export function normalizeGroupName(group?: string) {
-  return group?.trim() || "General";
+  return group?.trim() || "";
 }
 
 export function getGroupOptions(categories: CategoryFilterItem[]) {

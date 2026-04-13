@@ -8,6 +8,10 @@ import User, { UserRole } from "@/models/User";
 import Subscription from "@/models/Subscription";
 import Setting from "@/models/Setting";
 
+function escapeRegExp(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 type ListingRole = UserRole;
 type PopulatedPlan = {
   name?: string;
@@ -40,7 +44,7 @@ type PopulatedListing = {
 function mapListing(listing: PopulatedListing) {
   return {
     id: String(listing._id),
-    group: listing.group || "General",
+    group: listing.group || "",
     title: listing.title,
     category: listing.category,
     city: listing.city,
@@ -143,7 +147,7 @@ export async function POST(request: Request) {
     }
 
     const title = body.title?.trim();
-    const group = body.group?.trim() || "General";
+    const group = body.group?.trim();
     const category = body.category?.trim();
     const city = body.city?.trim();
     const quantity = body.quantity?.trim();
@@ -170,11 +174,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, message: "Unauthorized user context." }, { status: 403 });
     }
 
+    const escapedCategory = escapeRegExp(category);
     const categoryExists = await Category.findOne({
       $or: [
-        { name: new RegExp(`^${category}$`, "i") },
-        { "subcategories.name": new RegExp(`^${category}$`, "i") },
-        { "subcategories.children.name": new RegExp(`^${category}$`, "i") },
+        { name: new RegExp(`^${escapedCategory}$`, "i") },
+        { "subcategories.name": new RegExp(`^${escapedCategory}$`, "i") },
+        { "subcategories.children.name": new RegExp(`^${escapedCategory}$`, "i") },
       ],
     });
     if (!categoryExists) {
@@ -205,7 +210,7 @@ export async function POST(request: Request) {
     let activeSubscriptionToIncrement: { _id: mongoose.Types.ObjectId } | null = null;
     if (quotaOwner.role !== "admin") {
       const freeListingLimitSetting = await Setting.findOne({ key: "freeListingLimit" });
-      const freeListingLimit = Number(freeListingLimitSetting?.value || 0);
+      const freeListingLimit = Number(freeListingLimitSetting?.value || 5);
       const freeListingsUsed = quotaOwner.listingsUsedCount || 0;
 
       const activeSub = await Subscription.findOne({

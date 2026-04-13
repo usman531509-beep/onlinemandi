@@ -4,8 +4,10 @@ import { useState, FormEvent, useEffect, useRef } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Script from "next/script";
+import { useTranslation } from "@/lib/i18n";
 
 export default function ContactPage() {
+    const { t } = useTranslation();
     const sectionsRef = useRef<HTMLDivElement>(null);
 
     const [formData, setFormData] = useState({
@@ -56,13 +58,13 @@ export default function ContactPage() {
             const data = await res.json();
 
             if (res.ok && data.ok) {
-                setStatus({ type: "success", message: "Thank you! Your message has been sent successfully. We will get back to you shortly." });
+                setStatus({ type: "success", message: t("contact.success") });
                 setFormData({ name: "", email: "", phone: "", subject: "", message: "" });
             } else {
-                setStatus({ type: "error", message: data.message || "Something went wrong. Please try again." });
+                setStatus({ type: "error", message: data.message || t("contact.error") });
             }
         } catch (error) {
-            setStatus({ type: "error", message: "A network error occurred. Please try again later." });
+            setStatus({ type: "error", message: t("contact.networkError") });
         } finally {
             setIsLoading(false);
         }
@@ -77,9 +79,9 @@ export default function ContactPage() {
                 <div className="contact-hero-overlay"></div>
                 <div className="container position-relative" style={{ zIndex: 2 }}>
                     <div className="contact-hero-content">
-                        <h1 className="display-4 fw-bold text-white contact-hero-fade mb-3">Contact Us</h1>
+                        <h1 className="display-4 fw-bold text-white contact-hero-fade mb-3">{t("contact.heroTitle")}</h1>
                         <p className="text-white contact-hero-fade contact-hero-delay-1">
-                            Have questions? We're here to help. Reach out to our team for support, partnerships, or general inquiries.
+                            {t("contact.heroSubtitle")}
                         </p>
                     </div>
                 </div>
@@ -95,8 +97,8 @@ export default function ContactPage() {
                         <div className="col-lg-7 contact-animate contact-animate-left">
                             <div className="card border-0 shadow-lg rounded-4 overflow-hidden h-100">
                                 <div className="card-body p-4 p-md-5">
-                                    <h3 className="fw-bold mb-1" style={{ color: "#1b4332" }}>Send us a Message</h3>
-                                    <p className="text-muted mb-4 pb-2 border-bottom">Fill out the form below and we'll get back to you as soon as possible.</p>
+                                    <h3 className="fw-bold mb-1" style={{ color: "#1b4332" }}>{t("contact.sendMessage")}</h3>
+                                    <p className="text-muted mb-4 pb-2 border-bottom">{t("contact.formSubtitle")}</p>
 
                                     {status.type && (
                                         <div className={`alert alert-${status.type === "success" ? "success" : "danger"} d-flex align-items-center mb-4`} role="alert">
@@ -108,7 +110,7 @@ export default function ContactPage() {
                                     <form onSubmit={handleSubmit}>
                                         <div className="row g-3">
                                             <div className="col-md-6">
-                                                <label className="form-label fw-semibold">Full Name <span className="text-danger">*</span></label>
+                                                <label className="form-label fw-semibold">{t("contact.fullName")} <span className="text-danger">*</span></label>
                                                 <input
                                                     type="text"
                                                     className="form-control"
@@ -116,11 +118,11 @@ export default function ContactPage() {
                                                     required
                                                     value={formData.name}
                                                     onChange={handleChange}
-                                                    placeholder="Name"
+                                                    placeholder={t("contact.fullName")}
                                                 />
                                             </div>
                                             <div className="col-md-6">
-                                                <label className="form-label fw-semibold">Email Address <span className="text-danger">*</span></label>
+                                                <label className="form-label fw-semibold">{t("contact.emailAddress")} <span className="text-danger">*</span></label>
                                                 <input
                                                     type="email"
                                                     className="form-control"
@@ -128,11 +130,11 @@ export default function ContactPage() {
                                                     required
                                                     value={formData.email}
                                                     onChange={handleChange}
-                                                    placeholder="Email"
+                                                    placeholder={t("contact.emailAddress")}
                                                 />
                                             </div>
                                             <div className="col-md-6">
-                                                <label className="form-label fw-semibold">Phone Number <span className="text-muted fw-normal">(Optional)</span></label>
+                                                <label className="form-label fw-semibold">{t("contact.phoneNumber")} <span className="text-muted fw-normal">({t("contact.optional")})</span></label>
                                                 <input
                                                     type="tel"
                                                     className="form-control"
@@ -143,7 +145,7 @@ export default function ContactPage() {
                                                 />
                                             </div>
                                             <div className="col-md-6">
-                                                <label className="form-label fw-semibold">Subject <span className="text-danger">*</span></label>
+                                                <label className="form-label fw-semibold">{t("contact.subject")} <span className="text-danger">*</span></label>
                                                 <input
                                                     type="text"
                                                     className="form-control"
@@ -151,11 +153,11 @@ export default function ContactPage() {
                                                     required
                                                     value={formData.subject}
                                                     onChange={handleChange}
-                                                    placeholder="How can we help?"
+                                                    placeholder={t("contact.subjectPlaceholder")}
                                                 />
                                             </div>
                                             <div className="col-12">
-                                                <label className="form-label fw-semibold">Message <span className="text-danger">*</span></label>
+                                                <label className="form-label fw-semibold">{t("contact.message")} <span className="text-danger">*</span></label>
                                                 <textarea
                                                     className="form-control"
                                                     name="message"
@@ -163,15 +165,15 @@ export default function ContactPage() {
                                                     rows={5}
                                                     value={formData.message}
                                                     onChange={handleChange}
-                                                    placeholder="Please provide details about your inquiry..."
+                                                    placeholder={t("contact.messagePlaceholder")}
                                                 ></textarea>
                                             </div>
                                             <div className="col-12 mt-4">
                                                 <button type="submit" className="btn btn-warning w-100 fw-bold py-3 submit-btn" disabled={isLoading}>
                                                     {isLoading ? (
-                                                        <><span className="spinner-border spinner-border-sm me-2" role="status"></span> Sending Message...</>
+                                                        <><span className="spinner-border spinner-border-sm me-2" role="status"></span> {t("contact.sending")}</>
                                                     ) : (
-                                                        <><i className="fa-solid fa-paper-plane me-2"></i> Send Message</>
+                                                        <><i className="fa-solid fa-paper-plane me-2"></i> {t("contact.sendButton")}</>
                                                     )}
                                                 </button>
                                             </div>
@@ -185,15 +187,15 @@ export default function ContactPage() {
                         <div className="col-lg-4 contact-animate contact-animate-right">
                             <div className="card border-0 shadow-sm rounded-4 overlay-card info-card h-100">
                                 <div className="card-body p-4 p-md-5 d-flex flex-column h-100">
-                                    <h4 className="fw-bold mb-4 text-white">Contact Information</h4>
+                                    <h4 className="fw-bold mb-4 text-white">{t("contact.infoTitle")}</h4>
 
                                     <div className="d-flex align-items-start mb-4">
                                         <div className="icon-box me-3">
                                             <i className="fa-solid fa-location-dot"></i>
                                         </div>
                                         <div>
-                                            <h6 className="fw-bold mb-1 text-white">Our Office</h6>
-                                            <p className="mb-0 text-white-50 small">Pattan Road, Pindi bhattian</p>
+                                            <h6 className="fw-bold mb-1 text-white">{t("contact.ourOffice")}</h6>
+                                            <p className="mb-0 text-white-50 small">{t("footer.address")}</p>
                                         </div>
                                     </div>
 
@@ -202,8 +204,8 @@ export default function ContactPage() {
                                             <i className="fa-solid fa-phone"></i>
                                         </div>
                                         <div>
-                                            <h6 className="fw-bold mb-1 text-white">Phone Support</h6>
-                                            <p className="mb-0 text-white-50 small">+92 300 0000000<br />Mon - Sat, 9:00 AM - 6:00 PM</p>
+                                            <h6 className="fw-bold mb-1 text-white">{t("contact.phoneSupport")}</h6>
+                                            <p className="mb-0 text-white-50 small">{t("footer.phone")}<br />{t("footer.phoneHours")}</p>
                                         </div>
                                     </div>
 
@@ -212,13 +214,13 @@ export default function ContactPage() {
                                             <i className="fa-solid fa-envelope"></i>
                                         </div>
                                         <div>
-                                            <h6 className="fw-bold mb-1 text-white">Email Us</h6>
-                                            <p className="mb-0 text-white-50 small">support@onlinemundi.com<br />info@onlinemundi.com</p>
+                                            <h6 className="fw-bold mb-1 text-white">{t("contact.emailUs")}</h6>
+                                            <p className="mb-0 text-white-50 small">{t("footer.email1")}<br />{t("footer.email2")}</p>
                                         </div>
                                     </div>
 
                                     <div className="mt-auto">
-                                        <h6 className="fw-bold mb-3 text-white">Connect With Us</h6>
+                                        <h6 className="fw-bold mb-3 text-white">{t("contact.connectWithUs")}</h6>
                                         <div className="d-flex gap-2">
                                             <a href="https://facebook.com/onlinemundi" target="_blank" rel="noopener noreferrer" className="social-btn"><i className="fa-brands fa-facebook-f"></i></a>
                                             <a href="https://twitter.com/onlinemundi" target="_blank" rel="noopener noreferrer" className="social-btn"><i className="fa-brands fa-twitter"></i></a>

@@ -54,7 +54,7 @@ function mapCategory(category: {
 }): CategoryResponse {
   return {
     id: String(category._id),
-    group: category.group || "General",
+    group: category.group || "",
     name: category.name,
     description: category.description || "",
     createdAt: category.createdAt,
@@ -146,14 +146,14 @@ export async function POST(request: Request) {
 
     const userId = body.userId;
     const role = body.role;
-    const groupName = body.group?.trim() || "Crops";
+    const groupName = body.group?.trim();
     const name = body.name?.trim();
     const description = body.description?.trim();
     const subcategories = body.subcategories;
     const customFields = body.customFields;
 
-    if (!userId || !role || !name) {
-      return NextResponse.json({ ok: false, message: "userId, role and name are required." }, { status: 400 });
+    if (!userId || !role || !name || !groupName) {
+      return NextResponse.json({ ok: false, message: "userId, role, group, and name are required." }, { status: 400 });
     }
 
     if (role !== "admin") {

@@ -7,6 +7,7 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { findGroupForCategory, getCategoryOptionsForGroup, getGroupOptions } from "@/lib/category-filters";
+import { useTranslation } from "@/lib/i18n";
 
 
 type Listing = {
@@ -49,6 +50,7 @@ function getCategoryIcon(name: string) {
 }
 
 export default function Home() {
+  const { t } = useTranslation();
   const [activeSection, setActiveSection] = useState("home");
   const [listings, setListings] = useState<Listing[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -241,7 +243,7 @@ export default function Home() {
 
       {paymentSuccess && (
         <div className="alert alert-success alert-dismissible fade show text-center m-0 rounded-0" role="alert">
-          <strong>Thank you!</strong> Your payment was successful and your subscription is active.
+          <strong>{t("home.thankYou")}</strong> {t("home.paymentSuccess")}
           <button type="button" className="btn-close" onClick={() => setPaymentSuccess(false)} aria-label="Close"></button>
         </div>
       )}
@@ -250,16 +252,16 @@ export default function Home() {
         <section className="hero">
           <div className="hero-overlay"></div>
           <div className="container position-relative" style={{ zIndex: 2 }}>
-            <h1 className="display-4 fw-bold hero-title">Pakistan&apos;s Digital Agricultural Marketplace</h1>
+            <h1 className="display-4 fw-bold hero-title">{t("home.heroTitle")}</h1>
             <p className="lead mb-4 hero-subtitle">
-              Trading Wheat, Rice, Corn, and Citrus in Bulk - Direct from Farm to your place.
+              {t("home.heroSubtitle")}
             </p>
             <div className="d-grid gap-2 d-md-block hero-cta">
               <Link className="btn btn-warning btn-lg px-5 fw-bold me-md-2" href="/mundi">
-                I Want to Buy
+                {t("home.wantToBuy")}
               </Link>
               <Link className="btn btn-outline-light btn-lg px-5" href="/auth?mode=signup&role=seller">
-                I Want to Sell
+                {t("home.wantToSell")}
               </Link>
             </div>
           </div>
@@ -267,7 +269,7 @@ export default function Home() {
         </section>
 
         <div className="container my-5">
-          <h3 className="text-center fw-bold mb-4">Bulk Trading Categories</h3>
+          <h3 className="text-center fw-bold mb-4">{t("home.categoriesTitle")}</h3>
           <div className="row g-3 text-center">
             {visibleHomeCategories.map((category) => (
               <div className="col-6 col-md-2" key={category.id}>
@@ -289,20 +291,20 @@ export default function Home() {
           <div className="container">
             <div className="d-flex justify-content-between align-items-center mb-4">
               <div className="d-flex align-items-center gap-3">
-                <h3 className="fw-bold m-0">Live Mundi Listings</h3>
+                <h3 className="fw-bold m-0">{t("home.liveListings")}</h3>
                 <Link href="/mundi" className="btn btn-sm btn-outline-success rounded-pill px-3">
-                  View All <i className="fa-solid fa-arrow-right ms-1 small"></i>
+                  {t("home.viewAll")} <i className="fa-solid fa-arrow-right ms-1 small"></i>
                 </Link>
               </div>
               <span className="text-danger fw-bold d-none d-md-inline-block">
-                <i className="fa-solid fa-circle-dot"></i> Live Feed
+                <i className="fa-solid fa-circle-dot"></i> {t("home.liveFeed")}
               </span>
             </div>
             <div className="card border-0 shadow-sm mb-4">
               <div className="card-body">
                 <div className="row g-3">
                   <div className="col-md-3">
-                    <label className="form-label fw-bold">Group</label>
+                    <label className="form-label fw-bold">{t("home.filterGroup")}</label>
                     <select
                       id="filter-group"
                       className="form-select"
@@ -312,7 +314,7 @@ export default function Home() {
                         setCategoryFilter("all");
                       }}
                     >
-                      <option value="all">All Groups</option>
+                      <option value="all">{t("home.allGroups")}</option>
                       {groupOptions.map((group) => (
                         <option key={group} value={group}>
                           {group}
@@ -321,14 +323,14 @@ export default function Home() {
                     </select>
                   </div>
                   <div className="col-md-3">
-                    <label className="form-label fw-bold">Category</label>
+                    <label className="form-label fw-bold">{t("home.filterCategory")}</label>
                     <select
                       id="filter-category"
                       className="form-select"
                       value={categoryFilter}
                       onChange={(event) => setCategoryFilter(event.target.value)}
                     >
-                      <option value="all">All Categories</option>
+                      <option value="all">{t("home.allCategories")}</option>
                       {categoryOptions.map((category) => (
                         <option key={category} value={category}>
                           {category}
@@ -337,14 +339,14 @@ export default function Home() {
                     </select>
                   </div>
                   <div className="col-md-3">
-                    <label className="form-label fw-bold">City</label>
+                    <label className="form-label fw-bold">{t("home.filterCity")}</label>
                     <select
                       id="filter-city"
                       className="form-select"
                       value={cityFilter}
                       onChange={(event) => setCityFilter(event.target.value)}
                     >
-                      <option value="all">All Cities</option>
+                      <option value="all">{t("home.allCities")}</option>
                       {cityOptions.map((city) => (
                         <option key={city} value={city}>
                           {city}
@@ -353,14 +355,14 @@ export default function Home() {
                     </select>
                   </div>
                   <div className="col-md-3">
-                    <label className="form-label fw-bold">Grade</label>
+                    <label className="form-label fw-bold">{t("home.filterGrade")}</label>
                     <select
                       id="filter-grade"
                       className="form-select"
                       value={gradeFilter}
                       onChange={(event) => setGradeFilter(event.target.value)}
                     >
-                      <option value="all">All Grades</option>
+                      <option value="all">{t("home.allGrades")}</option>
                       {gradeOptions.map((grade) => (
                         <option key={grade} value={grade}>
                           {grade}
@@ -372,12 +374,12 @@ export default function Home() {
               </div>
             </div>
             <div id="listing-status" className="mb-3 text-muted small">
-              {filteredProducts.length} product(s) found
+              {filteredProducts.length} {t("home.productsFound")}
             </div>
             <div className="row g-3" id="product-listings-grid">
               {filteredProducts.length === 0 ? (
                 <div className="col-12">
-                  <div className="alert alert-light border mb-0">No products found for selected filters.</div>
+                  <div className="alert alert-light border mb-0">{t("home.noProducts")}</div>
                 </div>
               ) : (
                 filteredProducts.map((product) => (
@@ -400,11 +402,11 @@ export default function Home() {
                       <div className="card-body">
                         <div className="d-flex align-items-center gap-2 mb-2 flex-wrap">
                           <span className={`badge ${product.createdBy?.role === "admin" ? "bg-dark" : "bg-primary"}`}>
-                            {product.createdBy?.role === "admin" ? "Admin Listing" : "Seller Listing"}
+                            {product.createdBy?.role === "admin" ? t("home.adminListing") : t("home.sellerListing")}
                           </span>
                           {product.createdBy?.verificationStatus === "verified" && (
                             <span className="badge verified-badge">
-                              <i className="fa-solid fa-circle-check me-1"></i>Verified Seller
+                              <i className="fa-solid fa-circle-check me-1"></i>{t("home.verifiedSeller")}
                             </span>
                           )}
                         </div>
@@ -415,10 +417,10 @@ export default function Home() {
                         <p className="text-muted small">
                           <i className="fa-solid fa-clock"></i> {new Date(product.createdAt).toLocaleString()}
                         </p>
-                        <h4 className="text-success fw-bold">PKR {product.pricePerMaund.toLocaleString()} /maund</h4>
+                        <h4 className="text-success fw-bold">PKR {product.pricePerMaund.toLocaleString()} {t("home.perMaund")}</h4>
                         <hr />
                         <Link className="btn btn-mundi w-100" href={`/listing/${product.id}`}>
-                          View Details
+                          {t("home.viewDetails")}
                         </Link>
                       </div>
                     </div>
@@ -434,13 +436,13 @@ export default function Home() {
       <div className="bg-light py-5" id="pricing-section">
         <div className="container">
           <div className="text-center mb-5">
-            <h3 className="fw-bold m-0" style={{ color: "var(--primary-green)" }}>Subscription Plans</h3>
-            <p className="text-muted mt-2">Choose a plan that fits your business needs to unlock premium features and trade without limits.</p>
+            <h3 className="fw-bold m-0" style={{ color: "var(--primary-green)" }}>{t("home.subscriptionPlans")}</h3>
+            <p className="text-muted mt-2">{t("home.subscriptionSubtitle")}</p>
           </div>
 
           <div className="row g-4 justify-content-center">
             {plans.length === 0 ? (
-              <div className="col-12 text-center text-muted">Loading pricing plans...</div>
+              <div className="col-12 text-center text-muted">{t("home.loadingPlans")}</div>
             ) : (
               plans.map((plan) => (
                 <div className="col-md-6 col-lg-4" key={plan._id}>
@@ -448,17 +450,17 @@ export default function Home() {
                     <div className="card-header bg-white border-0 pt-5 pb-3">
                       <h4 className="fw-bold mb-2" style={{ color: "var(--primary-green)" }}>{plan.name}</h4>
                       <div className="display-5 fw-bold mb-1">Rs {plan.price.toLocaleString()}</div>
-                      <p className="text-muted small text-uppercase fw-semibold">/ {plan.interval === 'one-time' ? 'lifetime' : plan.interval}</p>
+                      <p className="text-muted small text-uppercase fw-semibold">/ {plan.interval === 'one-time' ? t("home.lifetime") : plan.interval}</p>
                       <p className="text-muted small px-3">{plan.description}</p>
                     </div>
 
                     <div className="card-body px-4 pb-4 pt-0 d-flex flex-column">
                       <div className="d-flex justify-content-center gap-3 mt-3 mb-2">
                         <div className="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1">
-                          <i className="fa-solid fa-list me-1"></i>{plan.listingLimit ?? 10} Listings
+                          <i className="fa-solid fa-list me-1"></i>{plan.listingLimit ?? 10} {t("home.listings")}
                         </div>
                         <div className="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 px-2 py-1">
-                          <i className="fa-solid fa-bullhorn me-1"></i>{plan.broadcastLimit ?? 5} Broadcasts
+                          <i className="fa-solid fa-bullhorn me-1"></i>{plan.broadcastLimit ?? 5} {t("home.broadcasts")}
                         </div>
                       </div>
                       <ul className="list-unstyled mb-4 text-start mt-2">
@@ -476,7 +478,7 @@ export default function Home() {
                             style={{ backgroundColor: '#2d6a4f', color: 'white', cursor: 'default' }}
                             disabled
                           >
-                            <i className="fa-solid fa-circle-check me-2"></i>Subscribed
+                            <i className="fa-solid fa-circle-check me-2"></i>{t("home.subscribed")}
                           </button>
                         ) : (
                           <button
@@ -487,7 +489,7 @@ export default function Home() {
                             {checkoutLoading === plan._id ? (
                               <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                             ) : (
-                              activeSubscription ? "Switch Plan" : "Subscribe Now"
+                              activeSubscription ? t("home.switchPlan") : t("home.subscribeNow")
                             )}
                           </button>
                         )}

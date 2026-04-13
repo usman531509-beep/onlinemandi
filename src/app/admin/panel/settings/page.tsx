@@ -2,6 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import AdminShell from "@/components/panel/AdminShell";
+import { useTranslation } from "@/lib/i18n";
 
 type SessionUser = {
   id: string;
@@ -18,7 +19,8 @@ type Category = {
 };
 
 function SettingsContent({ sessionUser }: { sessionUser: SessionUser }) {
-  const [freeListingLimit, setFreeListingLimit] = useState<number>(0);
+  const { t } = useTranslation();
+  const [freeListingLimit, setFreeListingLimit] = useState<number>(5);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   
@@ -76,7 +78,7 @@ function SettingsContent({ sessionUser }: { sessionUser: SessionUser }) {
 
     try {
       // Save Free Listing Limit
-      await fetch("/api/settings", {
+      const limitResponse = await fetch("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -85,6 +87,12 @@ function SettingsContent({ sessionUser }: { sessionUser: SessionUser }) {
           value: freeListingLimit,
         }),
       });
+
+      const limitData = await limitResponse.json();
+      if (!limitResponse.ok || !limitData.ok) {
+        setMessage(limitData.message || "Failed to save free listing limit.");
+        return;
+      }
 
       // Save Home Page Categories
       const response = await fetch("/api/settings", {
@@ -114,8 +122,9 @@ function SettingsContent({ sessionUser }: { sessionUser: SessionUser }) {
 
   // Group categories by their group name
   const groupedCategories = categories.reduce((acc, cat) => {
-    if (!acc[cat.group]) acc[cat.group] = [];
-    acc[cat.group].push(cat);
+    const groupKey = cat.group || "Ungrouped";
+    if (!acc[groupKey]) acc[groupKey] = [];
+    acc[groupKey].push(cat);
     return acc;
   }, {} as Record<string, Category[]>);
 
@@ -128,8 +137,8 @@ function SettingsContent({ sessionUser }: { sessionUser: SessionUser }) {
               <i className="fa-solid fa-gear fs-4"></i>
             </div>
             <div>
-              <h2 className="h4 fw-bold mb-0" style={{ color: "#1b4332" }}>System Settings</h2>
-              <p className="text-muted mb-0 small">Configure global platform behavior and visibility.</p>
+              <h2 className="h4 fw-bold mb-0" style={{ color: "#1b4332" }}>{t("settings.title")}</h2>
+              <p className="text-muted mb-0 small">{t("settings.subtitle")}</p>
             </div>
           </div>
         </div>
@@ -138,7 +147,7 @@ function SettingsContent({ sessionUser }: { sessionUser: SessionUser }) {
       <div className="row g-4">
         <div className="col-lg-12">
             <section className="card border shadow-sm rounded-4 p-4 bg-white">
-                <h3 className="h5 fw-bold mb-4">Registration & Marketplace Defaults</h3>
+                <h3 className="h5 fw-bold mb-4">{t("settings.registrationDefaults")}</h3>
                 
                 {message && (
                   <div className={`alert ${message.includes("success") ? "alert-success" : "alert-danger"} py-2`}>
@@ -149,13 +158,13 @@ function SettingsContent({ sessionUser }: { sessionUser: SessionUser }) {
                 {isLoading ? (
                   <div className="text-center py-5">
                       <div className="spinner-border text-success" role="status"></div>
-                      <p className="text-muted mt-2">Loading settings...</p>
+                      <p className="text-muted mt-2">{t("settings.loadingSettings")}</p>
                   </div>
                 ) : (
                   <form onSubmit={onSave} className="row g-4">
                     <div className="col-12 col-md-6">
-                      <label className="form-label fw-semibold">Free Listing Limit</label>
-                      <p className="text-muted small mb-2">How many free listings can a user create before requiring a subscription plan?</p>
+                      <label className="form-label fw-semibold">{t("settings.freeListingLimit")}</label>
+                      <p className="text-muted small mb-2">{t("settings.freeListingLimitDesc")}</p>
                       <input
                         type="number"
                         className="form-control"
@@ -168,8 +177,8 @@ function SettingsContent({ sessionUser }: { sessionUser: SessionUser }) {
                     <hr className="my-4" />
 
                     <div className="col-12">
-                        <label className="form-label fw-bold d-block mb-1 ">Home Page Visibility</label>
-                        <p className="text-muted small mb-4">Select categories you want to display on the home page icons section. If none selected, all categories will be shown.</p>
+                        <label className="form-label fw-bold d-block mb-1 ">{t("settings.homePageVisibility")}</label>
+                        <p className="text-muted small mb-4">{t("settings.homePageVisibilityDesc")}</p>
                         
                         <div className="row g-4">
                             {Object.entries(groupedCategories).map(([groupName, cats]) => (
@@ -200,9 +209,9 @@ function SettingsContent({ sessionUser }: { sessionUser: SessionUser }) {
                     <div className="col-12 mt-5">
                       <button type="submit" className="btn btn-success px-5 py-2 fw-semibold" disabled={isSaving}>
                         {isSaving ? (
-                          <><i className="fa-solid fa-spinner fa-spin me-2"></i>Saving All Settings...</>
+                          <><i className="fa-solid fa-spinner fa-spin me-2"></i>{t("settings.savingAll")}</>
                         ) : (
-                          <><i className="fa-solid fa-floppy-disk me-2"></i>Update All Settings</>
+                          <><i className="fa-solid fa-floppy-disk me-2"></i>{t("settings.updateAll")}</>
                         )}
                       </button>
                     </div>

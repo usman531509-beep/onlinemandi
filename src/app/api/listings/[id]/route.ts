@@ -6,6 +6,10 @@ import Category from "@/models/Category";
 import Listing from "@/models/Listing";
 import User, { UserRole } from "@/models/User";
 
+function escapeRegExp(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 type ListingRole = UserRole;
 
 type PopulatedListing = {
@@ -39,7 +43,7 @@ type PopulatedListing = {
 function mapListing(listing: PopulatedListing) {
   return {
     id: String(listing._id),
-    group: listing.group || "General",
+    group: listing.group || "",
     title: listing.title,
     category: listing.category,
     city: listing.city,
@@ -163,7 +167,7 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
     }
 
     const title = body.title?.trim();
-    const group = body.group?.trim() || "General";
+    const group = body.group?.trim();
     const category = body.category?.trim();
     const city = body.city?.trim();
     const quantity = body.quantity?.trim();
@@ -183,7 +187,14 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
       return NextResponse.json({ ok: false, message: "Please fill all required listing fields." }, { status: 400 });
     }
 
-    const categoryExists = await Category.findOne({ name: new RegExp(`^${category}$`, "i") });
+    const escapedCategory = escapeRegExp(category);
+    const categoryExists = await Category.findOne({
+      $or: [
+        { name: new RegExp(`^${escapedCategory}$`, "i") },
+        { "subcategories.name": new RegExp(`^${escapedCategory}$`, "i") },
+        { "subcategories.children.name": new RegExp(`^${escapedCategory}$`, "i") },
+      ],
+    });
     if (!categoryExists) {
       return NextResponse.json({ ok: false, message: "Selected category does not exist." }, { status: 400 });
     }

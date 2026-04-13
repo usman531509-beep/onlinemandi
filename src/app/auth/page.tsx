@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useState, useEffect, Suspense } from "react";
 import Image from "next/image";
+import { useTranslation } from "@/lib/i18n";
 
 type AuthMode = "login" | "signup";
 type UserRole = "admin" | "buyer" | "seller";
@@ -19,6 +20,7 @@ type SessionUser = {
 function AuthContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { t } = useTranslation();
 
   const [mode, setMode] = useState<AuthMode>("login");
   const [loading, setLoading] = useState(false);
@@ -124,6 +126,11 @@ function AuthContent() {
         return;
       }
 
+      if (data.user.role === "admin") {
+        setError(t("auth.adminError"));
+        return;
+      }
+
       if (mode === "signup") {
         setRegisteredUser(data.user);
         setShowWelcome(true);
@@ -160,22 +167,22 @@ function AuthContent() {
                 </Link>
               </div>
               <div className="mt-auto">
-                <h2 className="display-4 fw-bold mb-3">Pakistan's Premium Mundi Marketplace</h2>
+                <h2 className="display-4 fw-bold mb-3">{t("auth.heroTitle")}</h2>
                 <p className="lead opacity-90 mb-4">
-                  Join thousands of verified buyers and sellers. Trade crops with confidence, track real-time prices, and grow your Mundi today.
+                  {t("auth.heroSubtitle")}
                 </p>
                 <div className="d-flex gap-4 mt-5">
                   <div className="stat-item">
                     <h3 className="fw-bold mb-0">10k+</h3>
-                    <p className="small opacity-75">Active Traders</p>
+                    <p className="small opacity-75">{t("auth.activeTraders")}</p>
                   </div>
                   <div className="stat-item">
                     <h3 className="fw-bold mb-0">500+</h3>
-                    <p className="small opacity-75">Daily Listings</p>
+                    <p className="small opacity-75">{t("auth.dailyListings")}</p>
                   </div>
                   <div className="stat-item">
-                    <h3 className="fw-bold mb-0">Verified</h3>
-                    <p className="small opacity-75">Secure Deals</p>
+                    <h3 className="fw-bold mb-0">{t("auth.verified")}</h3>
+                    <p className="small opacity-75">{t("auth.secureDeals")}</p>
                   </div>
                 </div>
               </div>
@@ -194,12 +201,12 @@ function AuthContent() {
 
             <div className="text-center mb-5">
               <h1 className="h2 fw-bold text-brand-dark mb-2">
-                {mode === "login" ? "Welcome Back" : "Get Started"}
+                {mode === "login" ? t("auth.welcomeBack") : t("auth.getStarted")}
               </h1>
               <p className="text-muted">
-                {mode === "login" 
-                  ? "Access your dashboard and manage your trades." 
-                  : "Join the marketplace and start trading today."}
+                {mode === "login"
+                  ? t("auth.loginSubtitle")
+                  : t("auth.signupSubtitle")}
               </p>
             </div>
 
@@ -209,14 +216,14 @@ function AuthContent() {
                 className={`mode-tab ${mode === "login" ? "active" : ""}`}
                 onClick={() => { setMode("login"); setError(""); }}
               >
-                Login
+                {t("auth.login")}
               </button>
               <button
                 type="button"
                 className={`mode-tab ${mode === "signup" ? "active" : ""}`}
                 onClick={() => { setMode("signup"); setError(""); }}
               >
-                Sign Up
+                {t("auth.signup")}
               </button>
             </div>
 
@@ -230,13 +237,13 @@ function AuthContent() {
             <form onSubmit={onSubmit} className="auth-form">
               {mode === "signup" && (
                 <div className="mb-4">
-                  <label className="form-label small fw-bold text-uppercase opacity-75">Full Name</label>
+                  <label className="form-label small fw-bold text-uppercase opacity-75">{t("auth.fullName")}</label>
                   <div className="input-group">
                     <span className="input-group-text bg-transparent border-end-0"><i className="fa-solid fa-user text-muted opacity-50"></i></span>
                     <input
                       type="text"
                       className="form-control border-start-0 ps-0"
-                      placeholder="Enter your full name"
+                      placeholder={t("auth.fullNamePlaceholder")}
                       required
                       value={signupForm.fullName}
                       onChange={(e) => setSignupForm(prev => ({ ...prev, fullName: e.target.value }))}
@@ -247,7 +254,7 @@ function AuthContent() {
 
               <div className="mb-4">
                 <label className="form-label small fw-bold text-uppercase opacity-75">
-                  {mode === "login" ? "Email or Phone" : "Email Address"}
+                  {mode === "login" ? t("auth.emailOrPhone") : t("auth.emailAddress")}
                 </label>
                 <div className="input-group">
                   <span className="input-group-text bg-transparent border-end-0">
@@ -256,7 +263,7 @@ function AuthContent() {
                   <input
                     type={mode === "login" ? "text" : "email"}
                     className="form-control border-start-0 ps-0"
-                    placeholder={mode === "login" ? "name@email.com or 03XX-XXXXXXX" : "name@example.com"}
+                    placeholder={mode === "login" ? t("auth.emailOrPhonePlaceholder") : t("auth.emailPlaceholder")}
                     required
                     value={mode === "login" ? loginForm.email : signupForm.email}
                     onChange={(e) => {
@@ -271,13 +278,13 @@ function AuthContent() {
 
               {mode === "signup" && (
                 <div className="mb-4">
-                  <label className="form-label small fw-bold text-uppercase opacity-75">Phone Number</label>
+                  <label className="form-label small fw-bold text-uppercase opacity-75">{t("auth.phoneNumber")}</label>
                   <div className="input-group">
                     <span className="input-group-text bg-transparent border-end-0"><i className="fa-solid fa-phone text-muted opacity-50"></i></span>
                     <input
                       type="tel"
                       className="form-control border-start-0 ps-0"
-                      placeholder="03XX-XXXXXXX"
+                      placeholder={t("auth.phonePlaceholder")}
                       required
                       value={signupForm.phoneNumber}
                       onChange={(e) => setSignupForm(prev => ({ ...prev, phoneNumber: formatPhone(e.target.value) }))}
@@ -288,10 +295,10 @@ function AuthContent() {
 
               <div className="mb-4">
                 <div className="d-flex justify-content-between align-items-center mb-1">
-                  <label className="form-label small fw-bold text-uppercase opacity-75 mb-0">Password</label>
+                  <label className="form-label small fw-bold text-uppercase opacity-75 mb-0">{t("auth.password")}</label>
                   {mode === "login" && (
                     <Link href="/forgot-password" className="text-brand-success text-decoration-none fw-semibold x-small">
-                      Forgot?
+                      {t("auth.forgot")}
                     </Link>
                   )}
                 </div>
@@ -300,7 +307,7 @@ function AuthContent() {
                   <input
                     type={showPassword ? "text" : "password"}
                     className="form-control border-start-0 border-end-0 ps-0"
-                    placeholder="Enter password"
+                    placeholder={t("auth.passwordPlaceholder")}
                     required
                     value={mode === "login" ? loginForm.password : signupForm.password}
                     onChange={(e) => {
@@ -321,7 +328,7 @@ function AuthContent() {
 
               {mode === "signup" && (
                 <div className="mb-4">
-                  <label className="form-label small fw-bold text-uppercase opacity-75">Select Your Role</label>
+                  <label className="form-label small fw-bold text-uppercase opacity-75">{t("auth.selectRole")}</label>
                   <div className="input-group">
                     <span className="input-group-text bg-transparent border-end-0"><i className="fa-solid fa-hands-holding-circle text-muted opacity-50"></i></span>
                     <select
@@ -330,8 +337,8 @@ function AuthContent() {
                       value={signupForm.role}
                       onChange={(e) => setSignupForm(prev => ({ ...prev, role: e.target.value as UserRole }))}
                     >
-                      <option value="buyer">I am a Buyer (Wholesaler, Retailer)</option>
-                      <option value="seller">I am a Seller (Farmer, Stockist)</option>
+                      <option value="buyer">{t("auth.roleBuyer")}</option>
+                      <option value="seller">{t("auth.roleSeller")}</option>
                     </select>
                   </div>
                 </div>
@@ -342,7 +349,7 @@ function AuthContent() {
                   <span className="spinner-border spinner-border-sm" role="status"></span>
                 ) : (
                   <>
-                    <span>{mode === "login" ? "Log In to Your Account" : "Create My Trade Account"}</span>
+                    <span>{mode === "login" ? t("auth.loginButton") : t("auth.signupButton")}</span>
                     <i className="fa-solid fa-arrow-right-long small opacity-50"></i>
                   </>
                 )}
@@ -351,18 +358,18 @@ function AuthContent() {
 
             <div className="text-center mt-5">
               <p className="text-muted small">
-                {mode === "login" ? "New to OnlineMundi?" : "Already have an account?"}{" "}
+                {mode === "login" ? t("auth.newToMundi") : t("auth.alreadyHaveAccount")}{" "}
                 <button
                   type="button"
                   className="btn btn-link p-0 text-brand-success text-decoration-none fw-bold"
                   onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); }}
                 >
-                  {mode === "login" ? "Register now" : "Go to Login"}
+                  {mode === "login" ? t("auth.registerNow") : t("auth.goToLogin")}
                 </button>
               </p>
               <div className="text-center mt-3">
                   <Link href="/" className="small text-decoration-none auth-link">
-                    Back to Home
+                    {t("auth.backToHome")}
                   </Link>
                 </div>
             </div>
@@ -376,16 +383,15 @@ function AuthContent() {
             <div className="success-lottie mb-4 mx-auto">
               <div className="success-ring"><i className="fa-solid fa-check fs-1 text-white"></i></div>
             </div>
-            <h2 className="fw-bold mb-3">Welcome to OnlineMundi, {registeredUser.fullName}!</h2>
+            <h2 className="fw-bold mb-3">{t("auth.welcomeTitle", { name: registeredUser.fullName })}</h2>
             <p className="text-muted mb-5">
-              Your trade account as a <strong>{registeredUser.role}</strong> has been secured. 
-              Start exploring the marketplace now.
+              {t("auth.welcomeMessage", { role: registeredUser.role })}
             </p>
             <button
               className="btn btn-brand-success btn-lg py-3 rounded-3 fw-bold"
               onClick={() => storeSessionAndRedirect(registeredUser)}
             >
-              Go to My Dashboard
+              {t("auth.goToDashboard")}
             </button>
           </div>
         </div>

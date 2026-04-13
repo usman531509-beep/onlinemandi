@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTranslation } from "@/lib/i18n";
 
 type SessionUser = {
   id: string;
@@ -18,6 +19,7 @@ export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
+  const { t, lang, setLang } = useTranslation();
 
   useEffect(() => {
     // Close menus on route change
@@ -77,22 +79,29 @@ export default function Navbar() {
           <ul className="navbar-nav mx-auto mb-2 mb-lg-0 gap-lg-2">
             <li className="nav-item">
               <Link className={`nav-link text-center px-lg-3 ${pathname === "/" ? "active" : ""}`} href="/">
-                Home
+                {t("nav.home")}
               </Link>
             </li>
             <li className="nav-item">
               <Link className={`nav-link text-center px-lg-3 ${pathname === "/about" ? "active" : ""}`} href="/about">
-                About Us
+                {t("nav.about")}
               </Link>
             </li>
             <li className="nav-item">
               <Link className={`nav-link text-center px-lg-3 ${pathname === "/contact" ? "active" : ""}`} href="/contact">
-                Contact Us
+                {t("nav.contact")}
               </Link>
             </li>
           </ul>
 
           <div className="d-flex justify-content-center align-items-center pt-2 pt-lg-0 border-top border-white border-opacity-10 mt-2 mt-lg-0">
+            <button
+              className="btn btn-sm btn-outline-light border-0 fw-bold me-2"
+              onClick={() => setLang(lang === "en" ? "ur" : "en")}
+              style={{ fontSize: "0.85rem", minWidth: 50 }}
+            >
+              {t("lang.toggle")}
+            </button>
             {sessionUser ? (
               <div className="dropdown w-100 w-lg-auto text-center">
                 <button
@@ -112,7 +121,7 @@ export default function Navbar() {
                   </li>
                   <li className="d-none d-lg-block">
                     <h6 className="dropdown-header text-uppercase opacity-75 fw-bold" style={{ fontSize: "0.75rem", letterSpacing: "0.05em" }}>
-                      Signed in as
+                      {t("nav.signedInAs")}
                     </h6>
                     <div className="px-3 pb-2 mb-2 border-bottom">
                       <div className="fw-semibold text-truncate">{sessionUser.fullName}</div>
@@ -121,20 +130,20 @@ export default function Navbar() {
                   </li>
                   <li>
                     <Link className="dropdown-item py-2 d-flex align-items-center gap-2" href={`/${sessionUser.role}/panel`}>
-                      <i className="fa-solid fa-gauge-high text-success w-20px text-center"></i> Dashboard
+                      <i className="fa-solid fa-gauge-high text-success w-20px text-center"></i> {t("nav.dashboard")}
                     </Link>
                   </li>
                   <li><hr className="dropdown-divider my-1" /></li>
                   <li>
                     <button className="dropdown-item py-2 text-danger d-flex align-items-center gap-2 fw-medium" onClick={handleLogout}>
-                      <i className="fa-solid fa-arrow-right-from-bracket w-20px text-center"></i> Logout
+                      <i className="fa-solid fa-arrow-right-from-bracket w-20px text-center"></i> {t("nav.logout")}
                     </button>
                   </li>
                 </ul>
               </div>
             ) : (
               <Link className="btn btn-warning fw-semibold px-4 py-2 nav-auth-btn w-100 w-lg-auto" href="/auth">
-                Login / Signup
+                {t("nav.login")}
               </Link>
             )}
           </div>

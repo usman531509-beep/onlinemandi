@@ -5,8 +5,10 @@ import Image from "next/image";
 import Script from "next/script";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { useTranslation } from "@/lib/i18n";
 
 export default function AboutPage() {
+    const { t } = useTranslation();
     const sectionsRef = useRef<HTMLDivElement>(null);
 
     // Intersection Observer for scroll-triggered animations
@@ -37,11 +39,9 @@ export default function AboutPage() {
                 <div className="about-hero-overlay"></div>
                 <div className="container position-relative" style={{ zIndex: 2 }}>
                     <div className="about-hero-content">
-                        <h1 className="display-4 fw-bold mb-3 about-hero-fade">About Us</h1>
+                        <h1 className="display-4 fw-bold mb-3 about-hero-fade">{t("about.heroTitle")}</h1>
                         <p className="mb-0 about-hero-fade about-hero-delay-1">
-                            We connect Pakistani farmers, sellers, and bulk buyers
-                            on a single digital platform enabling direct, transparent,
-                            and fair agricultural trade across the country.
+                            {t("about.heroSubtitle")}
                         </p>
                     </div>
                 </div>
@@ -64,25 +64,19 @@ export default function AboutPage() {
                         </div>
                     </div>
                     <div className="col-lg-6 about-animate about-animate-right">
-                        <h2 className="fw-bold mb-1">This Is OnlineMundi!</h2>
+                        <h2 className="fw-bold mb-1">{t("about.thisIs")}</h2>
                         <div className="about-divider"></div>
                         <p className="text-success fw-semibold fst-italic mb-3">
-                            Pakistan&apos;s Digital Mundi Trade Crops Online &amp; Grow Together
+                            {t("about.tagline")}
                         </p>
                         <p className="text-muted">
-                            Agriculture is the backbone of Pakistan&apos;s economy. Yet, for decades,
-                            farmers and traders have relied on outdated methods — physical mundis,
-                            middlemen, and word-of-mouth. OnlineMundi changes that.
+                            {t("about.p1")}
                         </p>
                         <p className="text-muted">
-                            We provide a modern, easy-to-use digital marketplace where sellers can list
-                            their crops — wheat, rice, corn, citrus, pulses, and more — with transparent
-                            pricing, verified profiles, and direct buyer connections.
+                            {t("about.p2")}
                         </p>
                         <p className="text-muted mb-0">
-                            Whether you&apos;re a farmer in Punjab looking to sell 200 tons of Super Basmati,
-                            or a factory in Karachi sourcing bulk wheat — OnlineMundi brings the entire
-                            agricultural trade chain to your fingertips.
+                            {t("about.p3")}
                         </p>
                     </div>
                 </div>
@@ -94,12 +88,10 @@ export default function AboutPage() {
                     <div className="about-quote">
                         <i className="fa-solid fa-quote-left about-quote-icon"></i>
                         <blockquote className="mb-3">
-                            OnlineMundi began with a simple thought: <strong>How to give Pakistani farmers
-                                fair prices and direct market access</strong> without relying on middlemen
-                            who take away their hard-earned profits.
+                            {t("about.quoteText")}
                         </blockquote>
                         <p className="mb-0 text-muted">
-                            The OnlineMundi Team
+                            {t("about.quoteAuthor")}
                         </p>
                     </div>
                 </div>
@@ -121,20 +113,19 @@ export default function AboutPage() {
                         </div>
                     </div>
                     <div className="col-lg-6 order-lg-1 about-animate about-animate-left">
-                        <h2 className="fw-bold mb-1">What We Trade</h2>
+                        <h2 className="fw-bold mb-1">{t("about.whatWeTrade")}</h2>
                         <div className="about-divider"></div>
                         <p className="text-muted mb-4">
-                            OnlineMundi specializes in bulk agricultural trading across
-                            Pakistan&apos;s major crop categories:
+                            {t("about.whatWeTradeDesc")}
                         </p>
                         <div className="row g-3">
                             {[
-                                { icon: "fa-wheat-awn", name: "Wheat", desc: "Premium varieties from Punjab & Sindh" },
-                                { icon: "fa-bowl-rice", name: "Rice", desc: "Basmati, IRRI & Sella from Pakistan" },
-                                { icon: "fa-seedling", name: "Corn & Maize", desc: "Feed-grade and food-grade corn" },
-                                { icon: "fa-lemon", name: "Citrus & Fruits", desc: "Kinnow, oranges & seasonal fruits" },
-                                { icon: "fa-jar", name: "Pulses & Lentils", desc: "Chana, moong, masoor & more" },
-                                { icon: "fa-leaf", name: "Vegetables", desc: "Potatoes, onions & seasonal veggies" },
+                                { icon: "fa-wheat-awn", name: t("about.wheat"), desc: t("about.wheatDesc") },
+                                { icon: "fa-bowl-rice", name: t("about.rice"), desc: t("about.riceDesc") },
+                                { icon: "fa-seedling", name: t("about.corn"), desc: t("about.cornDesc") },
+                                { icon: "fa-lemon", name: t("about.citrus"), desc: t("about.citrusDesc") },
+                                { icon: "fa-jar", name: t("about.pulses"), desc: t("about.pulsesDesc") },
+                                { icon: "fa-leaf", name: t("about.vegetables"), desc: t("about.vegetablesDesc") },
                             ].map((item) => (
                                 <div className="col-6" key={item.name}>
                                     <div className="about-trade-item">
@@ -154,12 +145,12 @@ export default function AboutPage() {
             {/* How It Works */}
             <section className="about-hiw">
                 <div className="container text-center">
-                    <h2 className="fw-bold mb-4 about-animate about-animate-up">How It Works</h2>
+                    <h2 className="fw-bold mb-4 about-animate about-animate-up">{t("about.howItWorks")}</h2>
                     <div className="row g-4">
                         {[
-                            { step: "1", icon: "fa-user-plus", title: "Register", desc: "Create a free buyer or seller account in under 2 minutes." },
-                            { step: "2", icon: "fa-list-check", title: "List or Browse", desc: "Sellers post crops. Buyers browse or broadcasts." },
-                            { step: "3", icon: "fa-handshake", title: "Trade Directly", desc: "Negotiate and close deals directly." },
+                            { step: "1", icon: "fa-user-plus", title: t("about.step1Title"), desc: t("about.step1Desc") },
+                            { step: "2", icon: "fa-list-check", title: t("about.step2Title"), desc: t("about.step2Desc") },
+                            { step: "3", icon: "fa-handshake", title: t("about.step3Title"), desc: t("about.step3Desc") },
                         ].map((item, idx) => (
                             <div className="col-md-4" key={item.step}>
                                 <div className={`about-hiw-card about-animate about-animate-up`} style={{ transitionDelay: `${idx * 150}ms` }}>
@@ -179,12 +170,12 @@ export default function AboutPage() {
             {/* CTA */}
             <section className="about-cta about-animate about-animate-up">
                 <div className="container text-center">
-                    <h2 className="fw-bold mb-3" style={{ color: "#1b4332" }}>Start Trading on OnlineMundi</h2>
+                    <h2 className="fw-bold mb-3" style={{ color: "#1b4332" }}>{t("about.ctaTitle")}</h2>
                     <p className="text-muted mb-4" style={{ maxWidth: 500, margin: "0 auto" }}>
-                        Join hundreds of farmers and buyers already trading smarter. It&apos;s free to get started.
+                        {t("about.ctaSubtitle")}
                     </p>
                     <a className="btn btn-warning btn-lg px-5 fw-bold about-cta-btn" href="/auth">
-                        Get Started
+                        {t("about.ctaButton")}
                     </a>
                 </div>
             </section>

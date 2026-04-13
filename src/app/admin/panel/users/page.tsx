@@ -66,6 +66,16 @@ function UsersContent({ sessionUser }: { sessionUser: SessionUser }) {
   const [profileModalMessage, setProfileModalMessage] = useState("");
   const [isUpdatingVerification, setIsUpdatingVerification] = useState(false);
   const [selectedPreviewImage, setSelectedPreviewImage] = useState<string | null>(null);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [editProfileForm, setEditProfileForm] = useState({
+    businessName: "",
+    cnicNumber: "",
+    registeredMobileNumber: "",
+    city: "",
+    address: "",
+    notes: "",
+  });
   const [deletingUser, setDeletingUser] = useState<ListedUser | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -298,6 +308,86 @@ function UsersContent({ sessionUser }: { sessionUser: SessionUser }) {
   const closeSellerProfileModal = () => {
     setSelectedSellerProfile(null);
     setProfileModalMessage("");
+    setIsEditingProfile(false);
+  };
+
+  const startEditingProfile = () => {
+    if (!selectedSellerProfile) return;
+    setEditProfileForm({
+      businessName: selectedSellerProfile.sellerProfile?.businessName || "",
+      cnicNumber: selectedSellerProfile.sellerProfile?.cnicNumber || "",
+      registeredMobileNumber: selectedSellerProfile.sellerProfile?.registeredMobileNumber || "",
+      city: selectedSellerProfile.sellerProfile?.city || "",
+      address: selectedSellerProfile.sellerProfile?.address || "",
+      notes: selectedSellerProfile.sellerProfile?.notes || "",
+    });
+    setIsEditingProfile(true);
+    setProfileModalMessage("");
+  };
+
+  const saveEditedProfile = async () => {
+    if (!selectedSellerProfile) return;
+    setIsSavingProfile(true);
+    setProfileModalMessage("");
+
+    try {
+      const response = await fetch("/api/users/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: sessionUser.id,
+          role: sessionUser.role,
+          targetUserId: selectedSellerProfile.id,
+          businessName: editProfileForm.businessName,
+          cnicNumber: editProfileForm.cnicNumber,
+          registeredMobileNumber: editProfileForm.registeredMobileNumber,
+          city: editProfileForm.city,
+          address: editProfileForm.address,
+          notes: editProfileForm.notes,
+        }),
+      });
+
+      const data = (await response.json()) as { ok: boolean; message?: string };
+      if (!response.ok || !data.ok) {
+        setProfileModalMessage(data.message || "Failed to save profile.");
+        return;
+      }
+
+      setProfileModalMessage("Profile updated successfully.");
+      setIsEditingProfile(false);
+      await loadUsers();
+      setSelectedSellerProfile((prev) =>
+        prev
+          ? {
+              ...prev,
+              sellerProfile: prev.sellerProfile
+                ? {
+                    ...prev.sellerProfile,
+                    businessName: editProfileForm.businessName,
+                    cnicNumber: editProfileForm.cnicNumber,
+                    registeredMobileNumber: editProfileForm.registeredMobileNumber,
+                    city: editProfileForm.city,
+                    address: editProfileForm.address,
+                    notes: editProfileForm.notes,
+                  }
+                : {
+                    businessName: editProfileForm.businessName,
+                    cnicNumber: editProfileForm.cnicNumber,
+                    registeredMobileNumber: editProfileForm.registeredMobileNumber,
+                    city: editProfileForm.city,
+                    address: editProfileForm.address,
+                    notes: editProfileForm.notes,
+                    submittedAt: null,
+                    documents: [],
+                  },
+            }
+          : prev
+      );
+    } catch {
+      setProfileModalMessage("Network error while saving profile.");
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
   const updateSellerVerificationStatus = async (
@@ -965,11 +1055,20 @@ function UsersContent({ sessionUser }: { sessionUser: SessionUser }) {
                 <div className="d-flex justify-content-between align-items-center mb-3">
                   <div className="d-flex align-items-center gap-2">
                     <i className="fa-solid fa-id-card" style={{ color: "#2a5d49" }}></i>
-                    <h3 className="h5 fw-bold mb-0" style={{ color: "#1b4332" }}>Seller Verification Profile</h3>
+                    <h3 className="h5 fw-bold mb-0" style={{ color: "#1b4332" }}>
+                      {isEditingProfile ? "Edit Seller Profile" : "Seller Verification Profile"}
+                    </h3>
                   </div>
-                  <button className="btn btn-sm btn-outline-secondary" onClick={closeSellerProfileModal}>
-                    <i className="fa-solid fa-xmark"></i>
-                  </button>
+                  <div className="d-flex align-items-center gap-2">
+                    {!isEditingProfile && (
+                      <button className="btn btn-sm btn-outline-success" onClick={startEditingProfile}>
+                        <i className="fa-solid fa-pen-to-square me-1"></i>Edit
+                      </button>
+                    )}
+                    <button className="btn btn-sm btn-outline-secondary" onClick={closeSellerProfileModal}>
+                      <i className="fa-solid fa-xmark"></i>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="row g-3 mb-3">
@@ -999,41 +1098,96 @@ function UsersContent({ sessionUser }: { sessionUser: SessionUser }) {
                 <div className="row g-3 mb-3">
                   <div className="col-md-6">
                     <label className="form-label small text-muted mb-1">Business / Farm Name</label>
-                    <div className="border rounded-3 p-2 px-3">
-                      {selectedSellerProfile.sellerProfile?.businessName || <span className="text-muted">Not provided</span>}
-                    </div>
+                    {isEditingProfile ? (
+                      <input
+                        className="form-control"
+                        value={editProfileForm.businessName}
+                        onChange={(e) => setEditProfileForm((prev) => ({ ...prev, businessName: e.target.value }))}
+                        placeholder="Business / Farm Name"
+                      />
+                    ) : (
+                      <div className="border rounded-3 p-2 px-3">
+                        {selectedSellerProfile.sellerProfile?.businessName || <span className="text-muted">Not provided</span>}
+                      </div>
+                    )}
                   </div>
                   <div className="col-md-6">
                     <label className="form-label small text-muted mb-1">CNIC / Identity Number</label>
-                    <div className="border rounded-3 p-2 px-3">
-                      {selectedSellerProfile.sellerProfile?.cnicNumber || <span className="text-muted">Not provided</span>}
-                    </div>
+                    {isEditingProfile ? (
+                      <input
+                        className="form-control"
+                        value={editProfileForm.cnicNumber}
+                        onChange={(e) => setEditProfileForm((prev) => ({ ...prev, cnicNumber: e.target.value }))}
+                        placeholder="CNIC Number"
+                      />
+                    ) : (
+                      <div className="border rounded-3 p-2 px-3">
+                        {selectedSellerProfile.sellerProfile?.cnicNumber || <span className="text-muted">Not provided</span>}
+                      </div>
+                    )}
                   </div>
                   <div className="col-md-6">
                     <label className="form-label small text-muted mb-1">Registered Mobile Number</label>
-                    <div className="border rounded-3 p-2 px-3">
-                      {selectedSellerProfile.sellerProfile?.registeredMobileNumber || (
-                        <span className="text-muted">Not provided</span>
-                      )}
-                    </div>
+                    {isEditingProfile ? (
+                      <input
+                        className="form-control"
+                        value={editProfileForm.registeredMobileNumber}
+                        onChange={(e) => setEditProfileForm((prev) => ({ ...prev, registeredMobileNumber: e.target.value }))}
+                        placeholder="Mobile Number"
+                      />
+                    ) : (
+                      <div className="border rounded-3 p-2 px-3">
+                        {selectedSellerProfile.sellerProfile?.registeredMobileNumber || (
+                          <span className="text-muted">Not provided</span>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="col-md-6">
                     <label className="form-label small text-muted mb-1">City</label>
-                    <div className="border rounded-3 p-2 px-3">
-                      {selectedSellerProfile.sellerProfile?.city || <span className="text-muted">Not provided</span>}
-                    </div>
+                    {isEditingProfile ? (
+                      <input
+                        className="form-control"
+                        value={editProfileForm.city}
+                        onChange={(e) => setEditProfileForm((prev) => ({ ...prev, city: e.target.value }))}
+                        placeholder="City"
+                      />
+                    ) : (
+                      <div className="border rounded-3 p-2 px-3">
+                        {selectedSellerProfile.sellerProfile?.city || <span className="text-muted">Not provided</span>}
+                      </div>
+                    )}
                   </div>
                   <div className="col-md-6">
                     <label className="form-label small text-muted mb-1">Address</label>
-                    <div className="border rounded-3 p-2 px-3">
-                      {selectedSellerProfile.sellerProfile?.address || <span className="text-muted">Not provided</span>}
-                    </div>
+                    {isEditingProfile ? (
+                      <input
+                        className="form-control"
+                        value={editProfileForm.address}
+                        onChange={(e) => setEditProfileForm((prev) => ({ ...prev, address: e.target.value }))}
+                        placeholder="Address"
+                      />
+                    ) : (
+                      <div className="border rounded-3 p-2 px-3">
+                        {selectedSellerProfile.sellerProfile?.address || <span className="text-muted">Not provided</span>}
+                      </div>
+                    )}
                   </div>
                   <div className="col-12">
                     <label className="form-label small text-muted mb-1">Additional Info</label>
-                    <div className="border rounded-3 p-2 px-3">
-                      {selectedSellerProfile.sellerProfile?.notes || <span className="text-muted">Not provided</span>}
-                    </div>
+                    {isEditingProfile ? (
+                      <textarea
+                        className="form-control"
+                        rows={3}
+                        value={editProfileForm.notes}
+                        onChange={(e) => setEditProfileForm((prev) => ({ ...prev, notes: e.target.value }))}
+                        placeholder="Additional notes"
+                      />
+                    ) : (
+                      <div className="border rounded-3 p-2 px-3">
+                        {selectedSellerProfile.sellerProfile?.notes || <span className="text-muted">Not provided</span>}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1114,21 +1268,43 @@ function UsersContent({ sessionUser }: { sessionUser: SessionUser }) {
                 {profileModalMessage && <div className="alert alert-info py-2 rounded-3">{profileModalMessage}</div>}
 
                 <div className="d-flex justify-content-end gap-2">
-                  <button
-                    className="btn btn-outline-danger"
-                    onClick={() => void updateSellerVerificationStatus(selectedSellerProfile, "rejected")}
-                    disabled={isUpdatingVerification}
-                  >
-                    <i className="fa-solid fa-xmark me-2"></i>Reject
-                  </button>
-                  <button
-                    className="btn btn-success"
-                    onClick={() => void updateSellerVerificationStatus(selectedSellerProfile, "verified")}
-                    disabled={isUpdatingVerification}
-                  >
-                    <i className="fa-solid fa-check me-2"></i>
-                    {isUpdatingVerification ? "Updating..." : "Mark Verified"}
-                  </button>
+                  {isEditingProfile ? (
+                    <>
+                      <button
+                        className="btn btn-outline-secondary"
+                        onClick={() => setIsEditingProfile(false)}
+                        disabled={isSavingProfile}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        className="btn btn-success"
+                        onClick={() => void saveEditedProfile()}
+                        disabled={isSavingProfile}
+                      >
+                        <i className="fa-solid fa-floppy-disk me-2"></i>
+                        {isSavingProfile ? "Saving..." : "Save Changes"}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        className="btn btn-outline-danger"
+                        onClick={() => void updateSellerVerificationStatus(selectedSellerProfile, "rejected")}
+                        disabled={isUpdatingVerification}
+                      >
+                        <i className="fa-solid fa-xmark me-2"></i>Reject
+                      </button>
+                      <button
+                        className="btn btn-success"
+                        onClick={() => void updateSellerVerificationStatus(selectedSellerProfile, "verified")}
+                        disabled={isUpdatingVerification}
+                      >
+                        <i className="fa-solid fa-check me-2"></i>
+                        {isUpdatingVerification ? "Updating..." : "Mark Verified"}
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

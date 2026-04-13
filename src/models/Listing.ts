@@ -18,7 +18,7 @@ export type ListingDocument = {
 const listingSchema = new Schema<ListingDocument>(
   {
     title: { type: String, required: true, trim: true },
-    group: { type: String, required: true, default: "General", trim: true },
+    group: { type: String, required: true, trim: true },
     category: { type: String, required: true, trim: true },
     city: { type: String, required: true, trim: true },
     quantity: { type: String, required: true, trim: true },

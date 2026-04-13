@@ -12,6 +12,7 @@ type ProfileDocumentInput = {
 type UpdateBody = {
   userId?: string;
   role?: UserRole;
+  targetUserId?: string;
   businessName?: string;
   cnicNumber?: string;
   registeredMobileNumber?: string;
@@ -134,11 +135,33 @@ export async function PUT(request: Request) {
       return NextResponse.json({ ok: false, message: "Unauthorized user context." }, { status: 403 });
     }
 
-    if (user.role !== "seller") {
+    // Determine which user's profile to update
+    let targetId = userId;
+    const isAdminEdit = user.role === "admin" && body.targetUserId;
+
+    if (isAdminEdit) {
+      if (!mongoose.Types.ObjectId.isValid(body.targetUserId!)) {
+        return NextResponse.json({ ok: false, message: "Invalid targetUserId." }, { status: 400 });
+      }
+      const targetUser = await User.findById(body.targetUserId).select("role");
+      if (!targetUser || targetUser.role !== "seller") {
+        return NextResponse.json({ ok: false, message: "Target user must be a seller." }, { status: 400 });
+      }
+      targetId = body.targetUserId!;
+    } else if (user.role !== "seller") {
       return NextResponse.json({ ok: false, message: "Only sellers can update this profile." }, { status: 400 });
     }
 
-    const documents = sanitizeDocuments(body.documents);
+    // For admin edits, preserve existing documents if none provided
+    let documents = sanitizeDocuments(body.documents);
+    if (isAdminEdit && !body.documents) {
+      const existing = await User.collection.findOne(
+        { _id: new mongoose.Types.ObjectId(targetId) },
+        { projection: { "sellerProfile.documents": 1 } }
+      );
+      documents = (existing as any)?.sellerProfile?.documents || [];
+    }
+
     const hasProfileInput =
       Boolean(sanitizeText(body.businessName)) ||
       Boolean(sanitizeText(body.cnicNumber)) ||
@@ -159,18 +182,19 @@ export async function PUT(request: Request) {
       submittedAt: hasProfileInput ? new Date() : undefined,
     };
 
+    const updateFields: Record<string, unknown> = { sellerProfile };
+    // Admin edits don't change verification status
+    if (!isAdminEdit) {
+      updateFields.verificationStatus = hasProfileInput ? "pending" : "unsubmitted";
+    }
+
     await User.collection.updateOne(
-      { _id: new mongoose.Types.ObjectId(userId) },
-      {
-        $set: {
-          sellerProfile,
-          verificationStatus: hasProfileInput ? "pending" : "unsubmitted",
-        },
-      }
+      { _id: new mongoose.Types.ObjectId(targetId) },
+      { $set: updateFields }
     );
 
     const updated = await User.collection.findOne(
-      { _id: new mongoose.Types.ObjectId(userId) },
+      { _id: new mongoose.Types.ObjectId(targetId) },
       { projection: { sellerProfile: 1, verificationStatus: 1 } }
     );
 

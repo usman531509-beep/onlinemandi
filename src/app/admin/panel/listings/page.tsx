@@ -180,7 +180,7 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
 
   const getCategoryOptions = useCallback((groupName: string) => {
     return categories
-      .filter((category) => (category.group || "Crops").toLowerCase() === (groupName || "").toLowerCase())
+      .filter((category) => (category.group || "").toLowerCase() === (groupName || "").toLowerCase())
       .map((category) => category.name);
   }, [categories]);
 
@@ -213,7 +213,7 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
 
     setListingForm((prev) => {
       if (prev.category) return prev; // Avoid overwriting if they are typing
-      const g = prev.group || (groupOptions.length > 0 ? groupOptions[0] : "Crops");
+      const g = prev.group || (groupOptions.length > 0 ? groupOptions[0] : "");
       const validCategories = getCategoryOptions(g);
       const catName = prev.category || validCategories[0] || "";
       const cat = categories.find(c => c.name === catName);
@@ -221,7 +221,7 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
       return { ...prev, group: g, category: catName, extraInfo };
     });
     setEditForm((prev) => {
-      const g = prev.group || (groupOptions.length > 0 ? groupOptions[0] : "Crops");
+      const g = prev.group || (groupOptions.length > 0 ? groupOptions[0] : "");
       return { ...prev, group: g, category: prev.category || getCategoryOptions(g)[0] || "" };
     });
   }, [categoryOptions, groupOptions, categories, getCategoryOptions]);
@@ -372,7 +372,7 @@ function ListingsContent({ sessionUser }: { sessionUser: SessionUser }) {
     setEditingListingId(listing.id);
     setEditForm({
       title: listing.title,
-      group: listing.group || "Crops",
+      group: listing.group || "",
       category: hierarchy.category,
       subcategory: hierarchy.sub,
       childCategory: hierarchy.child,

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ReactNode, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "@/lib/i18n";
 
 type SessionUser = {
   id: string;
@@ -27,6 +28,7 @@ function initials(name: string) {
 
 export default function AdminShell({ children }: AdminShellProps) {
   const pathname = usePathname();
+  const { t } = useTranslation();
   const [sessionUser, setSessionUser] = useState<SessionUser | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isReady, setIsReady] = useState(false);
@@ -41,36 +43,36 @@ export default function AdminShell({ children }: AdminShellProps) {
     try {
       setSessionUser(JSON.parse(raw) as SessionUser);
     } catch {
-      localStorage.removeItem("mandi:sessionUser");
+      localStorage.removeItem("mundi:sessionUser");
     } finally {
       setIsReady(true);
     }
   }, []);
 
   const pageTitle = useMemo(() => {
-    if (pathname === "/admin/panel/users") return "Users";
-    if (pathname === "/admin/panel/listings") return "Listings";
-    if (pathname === "/admin/panel/categories") return "Categories";
-    if (pathname === "/admin/panel/reviews") return "Reviews";
-    if (pathname === "/admin/panel/requests/sell") return "Sell Requests";
-    if (pathname === "/admin/panel/contacts") return "Contact Inquiries";
-    if (pathname === "/admin/panel/pricing") return "Pricing Plans";
-    if (pathname === "/admin/panel/payments") return "Payments History";
-    if (pathname === "/admin/panel/settings") return "System Settings";
-    return "Dashboard";
-  }, [pathname]);
+    if (pathname === "/admin/panel/users") return t("adminPanel.users");
+    if (pathname === "/admin/panel/listings") return t("adminPanel.listings");
+    if (pathname === "/admin/panel/categories") return t("adminPanel.categories");
+    if (pathname === "/admin/panel/reviews") return t("adminPanel.reviews");
+    if (pathname === "/admin/panel/requests/sell") return t("adminPanel.sellRequests");
+    if (pathname === "/admin/panel/contacts") return t("adminPanel.contactInquiries");
+    if (pathname === "/admin/panel/pricing") return t("adminPanel.pricingPlans");
+    if (pathname === "/admin/panel/payments") return t("adminPanel.paymentsHistory");
+    if (pathname === "/admin/panel/settings") return t("adminPanel.systemSettings");
+    return t("nav.dashboard");
+  }, [pathname, t]);
 
   const navItems = [
-    { href: "/admin/panel", label: "Overview", icon: "fa-chart-line" },
-    { href: "/admin/panel/users", label: "Users", icon: "fa-users" },
-    { href: "/admin/panel/listings", label: "Listings", icon: "fa-list-check" },
-    { href: "/admin/panel/categories", label: "Categories", icon: "fa-layer-group" },
-    { href: "/admin/panel/reviews", label: "Reviews", icon: "fa-star" },
-    { href: "/admin/panel/requests/sell", label: "Sell Requests", icon: "fa-envelope-open-text" },
-    { href: "/admin/panel/pricing", label: "Pricing Plans", icon: "fa-tags" },
-    { href: "/admin/panel/payments", label: "Payments History", icon: "fa-file-invoice-dollar" },
-    { href: "/admin/panel/contacts", label: "Contact Inquiries", icon: "fa-headset" },
-    { href: "/admin/panel/settings", label: "System Settings", icon: "fa-gear" },
+    { href: "/admin/panel", label: t("adminPanel.overview"), icon: "fa-chart-line" },
+    { href: "/admin/panel/users", label: t("adminPanel.users"), icon: "fa-users" },
+    { href: "/admin/panel/listings", label: t("adminPanel.listings"), icon: "fa-list-check" },
+    { href: "/admin/panel/categories", label: t("adminPanel.categories"), icon: "fa-layer-group" },
+    { href: "/admin/panel/reviews", label: t("adminPanel.reviews"), icon: "fa-star" },
+    { href: "/admin/panel/requests/sell", label: t("adminPanel.sellRequests"), icon: "fa-envelope-open-text" },
+    { href: "/admin/panel/pricing", label: t("adminPanel.pricingPlans"), icon: "fa-tags" },
+    { href: "/admin/panel/payments", label: t("adminPanel.paymentsHistory"), icon: "fa-file-invoice-dollar" },
+    { href: "/admin/panel/contacts", label: t("adminPanel.contactInquiries"), icon: "fa-headset" },
+    { href: "/admin/panel/settings", label: t("adminPanel.systemSettings"), icon: "fa-gear" },
   ];
 
   return (
@@ -83,8 +85,8 @@ export default function AdminShell({ children }: AdminShellProps) {
                 <span className="visually-hidden">Loading...</span>
               </div>
               <div>
-                <h1 className="h5 fw-bold mb-1">Loading panel...</h1>
-                <p className="text-muted mb-0 small">Preparing your dashboard.</p>
+                <h1 className="h5 fw-bold mb-1">{t("dashboard.loading")}</h1>
+                <p className="text-muted mb-0 small">{t("dashboard.preparingDashboard")}</p>
               </div>
             </div>
           </div>
@@ -93,11 +95,11 @@ export default function AdminShell({ children }: AdminShellProps) {
             <div className="mb-3">
               <i className="fa-solid fa-lock fa-2x" style={{ color: "#1b4332" }}></i>
             </div>
-            <h1 className="h4 fw-bold">You are not logged in</h1>
-            <p className="text-muted mb-4">Please login first to access your dashboard.</p>
-            <Link href="/auth" className="btn btn-success px-4 py-2">
+            <h1 className="h4 fw-bold">{t("dashboard.notLoggedIn")}</h1>
+            <p className="text-muted mb-4">{t("dashboard.pleaseLoginAdmin")}</p>
+            <Link href="/admin" className="btn btn-success px-4 py-2">
               <i className="fa-solid fa-arrow-right-to-bracket me-2"></i>
-              Go to Login
+              {t("dashboard.goToAdminLogin")}
             </Link>
           </div>
         ) : sessionUser.role !== "admin" ? (
@@ -105,14 +107,14 @@ export default function AdminShell({ children }: AdminShellProps) {
             <div className="mb-3">
               <i className="fa-solid fa-shield-halved fa-2x" style={{ color: "#dc3545" }}></i>
             </div>
-            <h1 className="h4 fw-bold">Access restricted</h1>
-            <p className="text-muted mb-4">This panel is for admin users only.</p>
+            <h1 className="h4 fw-bold">{t("dashboard.accessRestricted")}</h1>
+            <p className="text-muted mb-4">{t("dashboard.adminOnly")}</p>
             <div className="d-flex justify-content-center gap-2 flex-wrap">
               <Link href="/" className="btn btn-outline-secondary px-4">
-                <i className="fa-solid fa-house me-2"></i>Back Home
+                <i className="fa-solid fa-house me-2"></i>{t("dashboard.backHome")}
               </Link>
               <Link href={`/${sessionUser.role}/panel`} className="btn btn-success px-4">
-                <i className="fa-solid fa-arrow-right me-2"></i>Go to My Panel
+                <i className="fa-solid fa-arrow-right me-2"></i>{t("dashboard.goToMyPanel")}
               </Link>
             </div>
           </div>
@@ -135,8 +137,8 @@ export default function AdminShell({ children }: AdminShellProps) {
                   </button>
                 </div>
                 <div className="sidebar-top p-4 border-bottom">
-                  <p className="small text-uppercase mb-2 sidebar-label">Admin Panel</p>
-                  <h3 className="h6 fw-bold mb-3" style={{ color: "#1b4332" }}>Navigation</h3>
+                  <p className="small text-uppercase mb-2 sidebar-label">{t("admin.login.title")}</p>
+                  <h3 className="h6 fw-bold mb-3" style={{ color: "#1b4332" }}>{t("adminPanel.navigation")}</h3>
                   <nav className="sidebar-nav" aria-label="Admin navigation">
                     {navItems.map((item) => (
                       <Link
@@ -191,17 +193,17 @@ export default function AdminShell({ children }: AdminShellProps) {
                     <div className="d-flex align-items-center gap-2 ms-2">
                         <Link href="/" className="btn btn-sm btn-outline-success border-0 fw-bold d-flex align-items-center gap-1">
                             <i className="fa-solid fa-house"></i>
-                            <span className="d-none d-sm-inline">Home</span>
+                            <span className="d-none d-sm-inline">{t("nav.home")}</span>
                         </Link>
                         <button
                             className="btn btn-sm btn-outline-danger border-0 d-flex align-items-center gap-1"
                             title="Logout"
                             onClick={() => {
                                 localStorage.removeItem("mundi:sessionUser");
-                                window.location.href = "/auth";
+                                window.location.href = "/admin";
                             }}
                         >
-                          <span className="d-none d-sm-inline fw-bold">Logout</span>
+                          <span className="d-none d-sm-inline fw-bold">{t("nav.logout")}</span>
                             <i className="fa-solid fa-right-from-bracket"></i>
                             
                         </button>

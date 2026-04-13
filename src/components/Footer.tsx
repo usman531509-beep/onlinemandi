@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslation } from "@/lib/i18n";
 
 export default function Footer() {
+    const { t } = useTranslation();
     return (
         <footer className="footer-section">
             <div className="container">
@@ -12,13 +14,11 @@ export default function Footer() {
                         <div className="footer-brand mb-3">
                             <Link href="/" className="text-decoration-none h4 fw-bold text-white">
                                 ONLINE<span className="text-warning">MUNDI</span>
-                                <small className="ms-1" style={{ fontSize: "12px", opacity: 0.8 }}>Pakistan</small>
+                                <small className="ms-1" style={{ fontSize: "12px", opacity: 0.8 }}>{t("footer.brand")}</small>
                             </Link>
                         </div>
                         <p className="footer-about-text mb-4">
-                            Pakistan's most trusted digital B2B marketplace for bulk crop trade. 
-                            Connecting farmers directly with wholesalers on OnlineMundi for a transparent, 
-                            efficient, and profitable future.
+                            {t("footer.about")}
                         </p>
                         <div className="social-links d-flex gap-3">
                             <a href="#" className="social-icon">
@@ -38,30 +38,30 @@ export default function Footer() {
 
                     {/* Quick Links */}
                     <div className="col-lg-2 col-md-6">
-                        <h5 className="footer-heading mb-4 text-white fw-bold">Quick Links</h5>
+                        <h5 className="footer-heading mb-4 text-white fw-bold">{t("footer.quickLinks")}</h5>
                         <ul className="footer-links list-unstyled">
-                            <li className="mb-2"><Link href="/">Home</Link></li>
-                            <li className="mb-2"><Link href="/about">About Us</Link></li>
+                            <li className="mb-2"><Link href="/">{t("nav.home")}</Link></li>
+                            <li className="mb-2"><Link href="/about">{t("nav.about")}</Link></li>
                         </ul>
                     </div>
 
                     <div className="col-lg-2 col-md-6">
-                        <h5 className="footer-heading mb-4 text-white fw-bold">Support</h5>
+                        <h5 className="footer-heading mb-4 text-white fw-bold">{t("footer.support")}</h5>
                         <ul className="footer-links list-unstyled">
-                            <li className="mb-2"><Link href="/privacy">Privacy Policy</Link></li>
-                            <li className="mb-2"><Link href="/terms">Terms of Use</Link></li>
+                            <li className="mb-2"><Link href="/privacy">{t("footer.privacyPolicy")}</Link></li>
+                            <li className="mb-2"><Link href="/terms">{t("footer.termsOfUse")}</Link></li>
                         </ul>
                     </div>
 
                     {/* Contact Info */}
                     <div className="col-lg-4 col-md-6">
-                        <h5 className="footer-heading mb-4 text-white fw-bold">Contact Office</h5>
+                        <h5 className="footer-heading mb-4 text-white fw-bold">{t("footer.contactOffice")}</h5>
                         <div className="contact-item d-flex gap-3 mb-3">
                             <div className="contact-icon">
                                 <i className="fa-solid fa-location-dot text-warning"></i>
                             </div>
                             <p className="mb-0 small opacity-75">
-                                Pattan Road, Pindi bhattian
+                                {t("footer.address")}
                             </p>
                         </div>
                         <div className="contact-item d-flex gap-3 mb-3">
@@ -69,8 +69,8 @@ export default function Footer() {
                                 <i className="fa-solid fa-phone text-warning"></i>
                             </div>
                             <p className="mb-0 small opacity-75">
-                                +92 300 0000000 <br />
-                                Mon - Sat, 9:00 AM - 6:00 PM
+                                {t("footer.phone")} <br />
+                                {t("footer.phoneHours")}
                             </p>
                         </div>
                         <div className="contact-item d-flex gap-3 mb-3">
@@ -78,8 +78,8 @@ export default function Footer() {
                                 <i className="fa-solid fa-envelope text-warning"></i>
                             </div>
                             <p className="mb-0 small opacity-75">
-                                support@onlinemundi.com <br />
-                                info@onlinemundi.com
+                                {t("footer.email1")} <br />
+                                {t("footer.email2")}
                             </p>
                         </div>
                     </div>
@@ -90,7 +90,7 @@ export default function Footer() {
                 <div className="row align-items-center py-4">
                     <div className="col-md-12">
                         <p className="footer-copyright mb-md-0 mb-3 small opacity-50 text-center">
-                            &copy; {new Date().getFullYear()} OnlineMundi Pakistan. All rights reserved.
+                            &copy; {new Date().getFullYear()} {t("footer.copyright")}
                         </p>
                     </div>
                 </div>

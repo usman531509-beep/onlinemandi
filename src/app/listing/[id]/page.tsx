@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import Script from "next/script";
 import Navbar from "@/components/Navbar";
+import { useTranslation } from "@/lib/i18n";
 
 type Listing = {
     id: string;
@@ -44,6 +45,7 @@ type Review = {
 export default function ListingDetailPage() {
     const params = useParams();
     const router = useRouter();
+    const { t } = useTranslation();
     const id = params.id as string;
 
     const [listing, setListing] = useState<Listing | null>(null);
@@ -182,7 +184,7 @@ export default function ListingDetailPage() {
                     <div className="spinner-border text-success" role="status" style={{ width: 48, height: 48 }}>
                         <span className="visually-hidden">Loading...</span>
                     </div>
-                    <p className="mt-3 text-muted">Loading listing details...</p>
+                    <p className="mt-3 text-muted">{t("listing.loading")}</p>
                 </div>
             </>
         );
@@ -194,10 +196,10 @@ export default function ListingDetailPage() {
                 <Navbar />
                 <div className="container my-5 text-center py-5">
                     <i className="fa-solid fa-triangle-exclamation fa-3x text-warning mb-3"></i>
-                    <h3 className="fw-bold">{error || "Listing not found"}</h3>
-                    <p className="text-muted mb-4">The listing you&apos;re looking for may have been removed or doesn&apos;t exist.</p>
+                    <h3 className="fw-bold">{error || t("listing.notFound")}</h3>
+                    <p className="text-muted mb-4">{t("listing.notFoundDesc")}</p>
                     <Link href="/" className="btn btn-mandi btn-lg">
-                        <i className="fa-solid fa-arrow-left me-2"></i>Back to Listings
+                        <i className="fa-solid fa-arrow-left me-2"></i>{t("listing.back")}
                     </Link>
                 </div>
             </>
@@ -216,7 +218,7 @@ export default function ListingDetailPage() {
                 <div className="container">
                     <div className="mb-4">
                         <button className="btn btn-link text-decoration-none text-dark p-0 d-flex align-items-center gap-2 fw-medium" onClick={() => router.back()}>
-                            <i className="fa-solid fa-arrow-left"></i> Back to Listings
+                            <i className="fa-solid fa-arrow-left"></i> {t("listing.back")}
                         </button>
                     </div>
 
@@ -240,7 +242,7 @@ export default function ListingDetailPage() {
                                                     {listing.createdBy?.verificationStatus === "verified" && (
                                                         <div className="position-absolute top-0 start-0 m-3 z-3">
                                                             <span className="badge bg-success rounded-pill px-3 py-2 fw-semibold shadow-sm" style={{ letterSpacing: "0.5px" }}>
-                                                                <i className="fa-solid fa-certificate me-1"></i>VERIFIED SELLER
+                                                                <i className="fa-solid fa-certificate me-1"></i>{t("listing.verifiedBadge")}
                                                             </span>
                                                         </div>
                                                     )}
@@ -333,7 +335,7 @@ export default function ListingDetailPage() {
                                             <div className="bg-light rounded p-3 d-flex align-items-start gap-3 h-100 border border-light">
                                                 <i className="fa-solid fa-box text-dark fs-4 mt-1"></i>
                                                 <div>
-                                                    <div className="fw-bolder fs-6 text-dark text-uppercase" style={{ letterSpacing: "-0.2px" }}>QUANTITY</div>
+                                                    <div className="fw-bolder fs-6 text-dark text-uppercase" style={{ letterSpacing: "-0.2px" }}>{t("listing.quantity")}</div>
                                                     <div className="text-muted small">{listing.quantity}</div>
                                                 </div>
                                             </div>
@@ -370,12 +372,12 @@ export default function ListingDetailPage() {
 
                                     <div className="col-12 mt-2">
                                         <div className="bg-light rounded p-4 border border-light">
-                                            <h6 className="fw-bolder mb-3 text-uppercase" style={{ letterSpacing: "0.5px", fontSize: "0.9rem" }}>Contact Details</h6>
+                                            <h6 className="fw-bolder mb-3 text-uppercase" style={{ letterSpacing: "0.5px", fontSize: "0.9rem" }}>{t("listing.contactSeller")}</h6>
 
                                             <div className="d-flex align-items-center mb-3">
                                                 <i className="fa-solid fa-phone text-muted me-3 fs-5"></i>
                                                 <div>
-                                                    <div className="text-muted small mb-1">Mobile Number</div>
+                                                    <div className="text-muted small mb-1">{t("profile.mobileNumber")}</div>
                                                     <div className="fw-medium text-dark" style={!canSeeContact ? { filter: 'blur(5px)', userSelect: 'none', pointerEvents: 'none' } : {}}>
                                                         {listing.createdBy?.phoneNumber || "Not provided"}
                                                     </div>
@@ -385,7 +387,7 @@ export default function ListingDetailPage() {
                                             <div className="d-flex align-items-start">
                                                 <i className="fa-solid fa-location-dot text-muted me-3 fs-5 mt-1"></i>
                                                 <div>
-                                                    <div className="text-muted small mb-1">Address</div>
+                                                    <div className="text-muted small mb-1">{t("profile.address")}</div>
                                                     <div className="fw-medium text-dark" style={!canSeeContact ? { filter: 'blur(5px)', userSelect: 'none', pointerEvents: 'none' } : {}}>
                                                         {listing.createdBy?.address || "Not provided"}
                                                     </div>
@@ -414,7 +416,7 @@ export default function ListingDetailPage() {
                                                 rel="noopener noreferrer"
                                                 className="btn btn-mundi w-100 py-3 fw-bold fs-5 rounded border-0"
                                             >
-                                                <i className="fab fa-whatsapp me-2"></i>Contact via WhatsApp
+                                                <i className="fab fa-whatsapp me-2"></i>{t("listing.whatsapp")}
                                             </a>
                                         </div>
                                     ) : !canSeeContact && contactCheckDone ? (
@@ -430,9 +432,9 @@ export default function ListingDetailPage() {
                                     ) : null}
 
                                     <div className="mt-5 border-top pt-4">
-                                        <h6 className="fw-bold mb-3 text-uppercase" style={{ letterSpacing: "0.5px", fontSize: "0.9rem" }}>Description</h6>
+                                        <h6 className="fw-bold mb-3 text-uppercase" style={{ letterSpacing: "0.5px", fontSize: "0.9rem" }}>{t("listing.description")}</h6>
                                         <p className="text-muted" style={{ lineHeight: "1.7", fontSize: "0.95rem" }}>
-                                            {listing.description || "No description provided."}
+                                            {listing.description || t("listing.noDescription")}
                                         </p>
 
 
@@ -447,7 +449,7 @@ export default function ListingDetailPage() {
                                 {/* Left Col - Write Review */}
                                 <div className="col-lg-5">
                                     <div className="bg-light p-4 rounded border border-light" style={{ backgroundColor: "#fcfdfe" }}>
-                                        <h4 className="fw-bolder mb-4 text-dark" style={{ letterSpacing: "-0.5px" }}>Write a Review</h4>
+                                        <h4 className="fw-bolder mb-4 text-dark" style={{ letterSpacing: "-0.5px" }}>{t("listing.writeReview")}</h4>
                                         {reviewMessage.text && (
                                             <div className={`alert alert-${reviewMessage.type} small py-2 px-3 fw-medium`}>
                                                 {reviewMessage.text}
@@ -490,7 +492,7 @@ export default function ListingDetailPage() {
                                             <div className="mb-4">
                                                 <textarea
                                                     className="form-control"
-                                                    placeholder="Share your experience..."
+                                                    placeholder={t("listing.reviewPlaceholder")}
                                                     rows={4}
                                                     value={reviewForm.comment}
                                                     onChange={(e) => setReviewForm({ ...reviewForm, comment: e.target.value })}
@@ -503,7 +505,7 @@ export default function ListingDetailPage() {
                                                 style={{ backgroundColor: "#0b0c10" }}
                                                 disabled={submittingReview}
                                             >
-                                                {submittingReview ? "Submitting..." : "Submit Review"}
+                                                {submittingReview ? t("listing.submitting") : t("listing.submitReview")}
                                             </button>
                                         </form>
                                     </div>
@@ -511,9 +513,9 @@ export default function ListingDetailPage() {
 
                                 {/* Right Col - Customer Reviews */}
                                 <div className="col-lg-7">
-                                    <h4 className="fw-bolder mb-4 text-dark" style={{ letterSpacing: "-0.5px" }}>What Customers Say ({reviews.length})</h4>
+                                    <h4 className="fw-bolder mb-4 text-dark" style={{ letterSpacing: "-0.5px" }}>{t("listing.reviews")} ({reviews.length})</h4>
                                     {reviews.length === 0 ? (
-                                        <p className="text-muted fst-italic">No reviews yet. Be the first to share your experience!</p>
+                                        <p className="text-muted fst-italic">{t("listing.noReviews")}</p>
                                     ) : (
                                         <div className="d-flex flex-column gap-3">
                                             {reviews.map((r) => (

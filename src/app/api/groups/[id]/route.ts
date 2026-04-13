@@ -100,8 +100,8 @@ export async function DELETE(
 
     await group.deleteOne();
 
-    // Safely re-assign any orphaned categories to "General"
-    await Category.updateMany({ group: oldName }, { $set: { group: "General" } });
+    // Delete orphaned categories that belonged to this group
+    await Category.deleteMany({ group: oldName });
 
     return NextResponse.json({ ok: true, message: "Group deleted successfully." });
   } catch (error) {

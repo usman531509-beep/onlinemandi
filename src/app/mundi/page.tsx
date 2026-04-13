@@ -6,6 +6,7 @@ import Link from "next/link";
 import Script from "next/script";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { useTranslation } from "@/lib/i18n";
 import { findGroupForCategory, getCategoryOptionsForGroup, getGroupOptions } from "@/lib/category-filters";
 
 type Listing = {
@@ -38,6 +39,7 @@ type Category = {
 };
 
 export default function MundiPage() {
+  const { t } = useTranslation();
   const [listings, setListings] = useState<Listing[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -130,8 +132,8 @@ export default function MundiPage() {
   const FilterContent = () => (
     <>
       <div className="d-flex justify-content-between align-items-center mb-4">
-        <h5 className="fw-bold m-0"><i className="fa-solid fa-sliders me-2 text-success"></i>Refine Search</h5>
-        <button onClick={resetFilters} className="btn btn-sm text-danger p-0 fw-semibold">Clear All</button>
+        <h5 className="fw-bold m-0"><i className="fa-solid fa-sliders me-2 text-success"></i>{t("mundi.filters")}</h5>
+        <button onClick={resetFilters} className="btn btn-sm text-danger p-0 fw-semibold">{t("mundi.clearFilters")}</button>
       </div>
 
       <div className="mb-4 d-none d-lg-block">
@@ -141,7 +143,7 @@ export default function MundiPage() {
           <input 
             type="text" 
             className="form-control bg-light border-start-0 ps-0" 
-            placeholder="Search crop..." 
+            placeholder={t("mundi.search")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -149,7 +151,7 @@ export default function MundiPage() {
       </div>
 
       <div className="mb-4">
-        <label className="form-label small fw-bold text-muted text-uppercase">Group</label>
+        <label className="form-label small fw-bold text-muted text-uppercase">{t("home.filterGroup")}</label>
         <select
           className="form-select bg-light border-0"
           value={groupFilter}
@@ -158,43 +160,43 @@ export default function MundiPage() {
             setCategoryFilter("all");
           }}
         >
-          <option value="all">All Groups</option>
+          <option value="all">{t("home.allGroups")}</option>
           {groupOptions.map(group => <option key={group} value={group}>{group}</option>)}
         </select>
       </div>
 
       <div className="mb-4">
-        <label className="form-label small fw-bold text-muted text-uppercase">Category</label>
-        <select 
-          className="form-select bg-light border-0" 
+        <label className="form-label small fw-bold text-muted text-uppercase">{t("home.filterCategory")}</label>
+        <select
+          className="form-select bg-light border-0"
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
         >
-          <option value="all">All Categories</option>
+          <option value="all">{t("home.allCategories")}</option>
           {categoryOptions.map(cat => <option key={cat} value={cat}>{cat}</option>)}
         </select>
       </div>
 
       <div className="mb-4">
-        <label className="form-label small fw-bold text-muted text-uppercase">City / District</label>
-        <select 
-          className="form-select bg-light border-0" 
+        <label className="form-label small fw-bold text-muted text-uppercase">{t("home.filterCity")}</label>
+        <select
+          className="form-select bg-light border-0"
           value={cityFilter}
           onChange={(e) => setCityFilter(e.target.value)}
         >
-          <option value="all">All Locations</option>
+          <option value="all">{t("home.allCities")}</option>
           {cityOptions.map(city => <option key={city} value={city}>{city}</option>)}
         </select>
       </div>
 
       <div className="mb-4">
-        <label className="form-label small fw-bold text-muted text-uppercase">Quality Grade</label>
-        <select 
-          className="form-select bg-light border-0" 
+        <label className="form-label small fw-bold text-muted text-uppercase">{t("home.filterGrade")}</label>
+        <select
+          className="form-select bg-light border-0"
           value={gradeFilter}
           onChange={(e) => setGradeFilter(e.target.value)}
         >
-          <option value="all">All Grades</option>
+          <option value="all">{t("home.allGrades")}</option>
           {gradeOptions.map(grade => <option key={grade} value={grade}>{grade}</option>)}
         </select>
       </div>
@@ -204,15 +206,15 @@ export default function MundiPage() {
         <div className="d-flex flex-column gap-2 mt-2">
           <div className="form-check custom-radio">
             <input className="form-check-input" type="radio" name="roleFilter" id="roleAll" checked={roleFilter === "all"} onChange={() => setRoleFilter("all")} />
-            <label className="form-check-label small" htmlFor="roleAll">All Listings</label>
+            <label className="form-check-label small" htmlFor="roleAll">{t("mundi.allRoles")}</label>
           </div>
           <div className="form-check custom-radio">
             <input className="form-check-input" type="radio" name="roleFilter" id="roleAdmin" checked={roleFilter === "admin"} onChange={() => setRoleFilter("admin")} />
-            <label className="form-check-label small" htmlFor="roleAdmin">Verified by Admin</label>
+            <label className="form-check-label small" htmlFor="roleAdmin">{t("mundi.adminOnly")}</label>
           </div>
           <div className="form-check custom-radio">
             <input className="form-check-input" type="radio" name="roleFilter" id="roleSeller" checked={roleFilter === "seller"} onChange={() => setRoleFilter("seller")} />
-            <label className="form-check-label small" htmlFor="roleSeller">Direct Sellers</label>
+            <label className="form-check-label small" htmlFor="roleSeller">{t("mundi.sellerOnly")}</label>
           </div>
         </div>
       </div>
@@ -242,7 +244,7 @@ export default function MundiPage() {
               <input 
                 type="text" 
                 className="form-control border-start-0 ps-0" 
-                placeholder="Search..." 
+                placeholder={t("mundi.search")}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -272,8 +274,8 @@ export default function MundiPage() {
           <div className="col-lg-9">
             <div className="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
               <div>
-                <h2 className="fw-bold mb-1 h3 h2-lg">Live Mundi Feed</h2>
-                <p className="text-muted mb-0 small">{filteredListings.length} active trade listings found</p>
+                <h2 className="fw-bold mb-1 h3 h2-lg">{t("mundi.title")}</h2>
+                <p className="text-muted mb-0 small">{filteredListings.length} {t("home.productsFound")}</p>
               </div>
               <div className="d-flex align-items-center">
                 <span className="badge bg-danger rounded-pill px-3 py-2"><i className="fa-solid fa-circle-dot me-1"></i>Live</span>
@@ -284,7 +286,7 @@ export default function MundiPage() {
               <div className="card border-0 shadow-sm rounded-4 text-center py-5">
                 <div className="card-body">
                   <div className="spinner-border text-success" role="status"></div>
-                  <p className="mt-3 text-muted mb-0">Syncing live listings...</p>
+                  <p className="mt-3 text-muted mb-0">{t("mundi.loading")}</p>
                 </div>
               </div>
             ) : filteredListings.length === 0 ? (
@@ -293,9 +295,9 @@ export default function MundiPage() {
                   <div className="mb-4">
                     <i className="fa-solid fa-magnifying-glass-chart fa-4x text-light"></i>
                   </div>
-                  <h4 className="fw-bold">No results found</h4>
+                  <h4 className="fw-bold">{t("mundi.noListings")}</h4>
                   <p className="text-muted mx-auto" style={{ maxWidth: "400px" }}>
-                    We couldn&apos;t find any listings matching your selection. 
+                    {t("mundi.noListings")}
                   </p>
                   <button onClick={resetFilters} className="btn btn-success rounded-pill px-5 py-2 mt-2">View All Listings</button>
                 </div>
@@ -323,7 +325,7 @@ export default function MundiPage() {
                           )}
                           <div className="position-absolute top-0 start-0 p-3">
                             <span className={`badge ${item.createdBy?.role === "admin" ? "bg-dark" : "bg-primary"} shadow-sm rounded-pill px-3`}>
-                              {item.createdBy?.role === "admin" ? "Verified" : "Direct Seller"}
+                              {item.createdBy?.role === "admin" ? t("home.adminListing") : t("home.sellerListing")}
                             </span>
                           </div>
                         </div>
@@ -341,10 +343,10 @@ export default function MundiPage() {
 
                           <div className="d-flex justify-content-between align-items-end mt-auto pt-3 border-top">
                             <div className="price-tag">
-                              <span className="x-small text-muted text-uppercase fw-bold d-block mb-1">Rs / Maund</span>
+                              <span className="x-small text-muted text-uppercase fw-bold d-block mb-1">{t("home.perMaund")}</span>
                               <span className="h5 fw-bold text-success mb-0">{item.pricePerMaund.toLocaleString()}</span>
                             </div>
-                            <span className="btn btn-success btn-sm rounded-pill px-4 py-2 hover-ripple">Details</span>
+                            <span className="btn btn-success btn-sm rounded-pill px-4 py-2 hover-ripple">{t("home.viewDetails")}</span>
                           </div>
                         </div>
                       </Link>
@@ -359,7 +361,7 @@ export default function MundiPage() {
 
       <div className="offcanvas offcanvas-start rounded-end-4" tabIndex={-1} id="offcanvasFilters" aria-labelledby="offcanvasFiltersLabel">
         <div className="offcanvas-header border-bottom">
-          <h5 className="offcanvas-title fw-bold" id="offcanvasFiltersLabel">Mundi Filters</h5>
+          <h5 className="offcanvas-title fw-bold" id="offcanvasFiltersLabel">{t("mundi.filters")}</h5>
           <button type="button" className="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
         </div>
         <div className="offcanvas-body p-4">
