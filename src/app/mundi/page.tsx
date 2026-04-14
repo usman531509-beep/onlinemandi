@@ -129,12 +129,14 @@ export default function MundiPage() {
     }
   }, [categoryFilter, categoryOptions]);
 
-  const FilterContent = () => (
+  const FilterContent = ({ hideHeader }: { hideHeader?: boolean }) => (
     <>
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h5 className="fw-bold m-0"><i className="fa-solid fa-sliders me-2 text-success"></i>{t("mundi.filters")}</h5>
-        <button onClick={resetFilters} className="btn btn-sm text-danger p-0 fw-semibold">{t("mundi.clearFilters")}</button>
-      </div>
+      {!hideHeader && (
+        <div className="d-flex justify-content-between align-items-center mb-4">
+          <h5 className="fw-bold m-0"><i className="fa-solid fa-sliders me-2 text-success"></i>{t("mundi.filters")}</h5>
+          <button onClick={resetFilters} className="btn btn-sm text-danger p-0 fw-semibold">{t("mundi.clearFilters")}</button>
+        </div>
+      )}
 
       <div className="mb-4 d-none d-lg-block">
         <label className="form-label small fw-bold text-muted text-uppercase">Keyword</label>
@@ -303,53 +305,54 @@ export default function MundiPage() {
                 </div>
               </div>
             ) : (
-              <div className="row g-3 g-md-4">
+              <div className="row g-3">
                 {filteredListings.map((item) => (
-                  <div className="col-sm-6 col-xl-4" key={item.id}>
-                    <div className="card h-100 border-0 shadow-sm rounded-4 listing-card-premium overflow-hidden border-hover">
-                      <Link href={`/listing/${item.id}`} className="text-decoration-none h-100 d-flex flex-column">
-                        <div className="position-relative overflow-hidden">
-                          {item.images?.[0] ? (
-                            <Image 
-                              src={item.images[0]} 
-                              alt={item.title} 
-                              width={400} 
-                              height={240} 
-                              className="card-img-top listing-img"
-                              unoptimized
-                            />
-                          ) : (
-                            <div className="card-img-top d-flex align-items-center justify-content-center text-muted bg-gradient-light" style={{ height: "200px" }}>
-                              <i className="fa-regular fa-image fa-3x op-30"></i>
-                            </div>
-                          )}
-                          <div className="position-absolute top-0 start-0 p-3">
-                            <span className={`badge ${item.createdBy?.role === "admin" ? "bg-dark" : "bg-primary"} shadow-sm rounded-pill px-3`}>
-                              {item.createdBy?.role === "admin" ? t("home.adminListing") : t("home.sellerListing")}
-                            </span>
+                  <div className="col-6 col-md-4 col-xl-4" key={item.id}>
+                    <div className="lc h-100">
+                      <div className="lc-img">
+                        {item.images?.[0] ? (
+                          <Image
+                            src={item.images[0]}
+                            alt={item.title}
+                            width={400}
+                            height={300}
+                            unoptimized
+                            className="lc-img-src"
+                          />
+                        ) : (
+                          <div className="lc-img-empty">
+                            <i className="fa-solid fa-wheat-awn"></i>
+                          </div>
+                        )}
+                        {item.createdBy?.verificationStatus === "verified" && (
+                          <span className="lc-badge-verified">
+                            <i className="fa-solid fa-circle-check"></i> {t("home.verifiedSeller")}
+                          </span>
+                        )}
+                      </div>
+                      <div className="lc-body">
+                        <h6 className="lc-title">{item.title}</h6>
+                        <div className="lc-info">
+                          <div className="lc-info-row">
+                            <i className="fa-solid fa-location-dot"></i>
+                            <span>{item.city}</span>
+                          </div>
+                          <div className="lc-info-row">
+                            <i className="fa-solid fa-calendar-days"></i>
+                            <span>{new Date(item.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</span>
                           </div>
                         </div>
-                        <div className="card-body p-3 p-md-4 d-flex flex-column">
-                          <h5 className="card-title fw-bold text-dark mb-2 line-clamp-2">{item.title}</h5>
-                          
-                          <div className="mb-3 mt-1">
-                            <div className="d-flex align-items-center text-muted small mb-1">
-                              <i className="fa-solid fa-location-dot text-success me-2 width-16"></i> {item.city}
-                            </div>
-                            <div className="d-flex align-items-center text-muted small">
-                              <i className="fa-solid fa-calendar text-muted me-2 width-16"></i> {new Date(item.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
-                            </div>
+                        <div className="lc-divider"></div>
+                        <div className="lc-footer">
+                          <div className="lc-price-block">
+                            <span className="lc-price-label">{t("home.perMaund").toUpperCase()}</span>
+                            <span className="lc-price-value">{item.pricePerMaund.toLocaleString()}</span>
                           </div>
-
-                          <div className="d-flex justify-content-between align-items-end mt-auto pt-3 border-top">
-                            <div className="price-tag">
-                              <span className="x-small text-muted text-uppercase fw-bold d-block mb-1">{t("home.perMaund")}</span>
-                              <span className="h5 fw-bold text-success mb-0">{item.pricePerMaund.toLocaleString()}</span>
-                            </div>
-                            <span className="btn btn-success btn-sm rounded-pill px-4 py-2 hover-ripple">{t("home.viewDetails")}</span>
-                          </div>
+                          <Link href={`/listing/${item.id}`} className="lc-btn">
+                            {t("home.viewDetails")}
+                          </Link>
                         </div>
-                      </Link>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -359,13 +362,26 @@ export default function MundiPage() {
         </div>
       </main>
 
-      <div className="offcanvas offcanvas-start rounded-end-4" tabIndex={-1} id="offcanvasFilters" aria-labelledby="offcanvasFiltersLabel">
-        <div className="offcanvas-header border-bottom">
-          <h5 className="offcanvas-title fw-bold" id="offcanvasFiltersLabel">{t("mundi.filters")}</h5>
-          <button type="button" className="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+      <div className="offcanvas offcanvas-start rounded-end-4" tabIndex={-1} id="offcanvasFilters" aria-labelledby="offcanvasFiltersLabel" style={{ zIndex: 1060 }}>
+        <div className="offcanvas-header border-bottom py-3">
+          <h5 className="offcanvas-title fw-bold" id="offcanvasFiltersLabel">
+            <i className="fa-solid fa-sliders me-2 text-success"></i>{t("mundi.filters")}
+          </h5>
+          <button
+            type="button"
+            className="btn btn-outline-secondary rounded-circle d-flex align-items-center justify-content-center"
+            style={{ width: 36, height: 36, padding: 0 }}
+            data-bs-dismiss="offcanvas"
+            aria-label="Close"
+          >
+            <i className="fa-solid fa-xmark"></i>
+          </button>
         </div>
         <div className="offcanvas-body p-4">
-          <FilterContent />
+          <div className="d-flex justify-content-between align-items-center mb-4">
+            <button onClick={resetFilters} className="btn btn-sm text-danger p-0 fw-semibold">{t("mundi.clearFilters")}</button>
+          </div>
+          <FilterContent hideHeader />
           <div className="mt-5 pt-3 border-top">
             <button className="btn btn-success w-100 py-3 rounded-4 fw-bold" data-bs-dismiss="offcanvas">Show Results</button>
           </div>
@@ -374,52 +390,12 @@ export default function MundiPage() {
 
       <Footer />
 
-      <style jsx>{`
+      <style jsx global>{`
         .mundi-page-wrapper {
           background-color: #f6f9f7;
           min-height: 100vh;
         }
-        
-        .listing-card-premium {
-          transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
-        }
-        
-        .listing-card-premium:hover {
-          transform: translateY(-8px);
-          box-shadow: 0 12px 25px rgba(27, 67, 50, 0.12) !important;
-        }
-        
-        .listing-img {
-          height: 200px;
-          object-fit: cover;
-          transition: transform 0.8s ease;
-        }
-        
-        .listing-card-premium:hover .listing-img {
-          transform: scale(1.08);
-        }
 
-        .border-hover:hover {
-          outline: 2px solid #1b4332;
-        }
-        
-        .line-clamp-2 {
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          -webkit-box-orient: vertical;  
-          overflow: hidden;
-          min-height: 2.8em;
-          line-height: 1.4;
-        }
-
-        .bg-gradient-light {
-          background: linear-gradient(135deg, #f8fbf9 0%, #eef7f3 100%);
-        }
-
-        .op-30 { opacity: 0.3; }
-        .x-small { font-size: 0.65rem; }
-        .width-16 { width: 16px; }
-        
         .breadcrumb-item + .breadcrumb-item::before {
           content: "›";
           font-size: 1.2rem;
@@ -432,15 +408,189 @@ export default function MundiPage() {
           border-color: #1b4332;
         }
 
-        .hover-ripple {
-          transition: background 0.2s;
-        }
-        .hover-ripple:active {
-          filter: brightness(0.9);
-        }
-
         @media (max-width: 991px) {
           .h2-lg { font-size: calc(1.325rem + 0.9vw); }
+        }
+
+        /* ===== Listing Cards (same as home) ===== */
+        .lc {
+          background: #fff;
+          border-radius: 24px;
+          overflow: hidden;
+          box-shadow: 0 2px 16px rgba(0,0,0,0.05);
+          transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        .lc:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 12px 36px rgba(0,0,0,0.1);
+        }
+
+        .lc-img {
+          position: relative;
+          overflow: hidden;
+          aspect-ratio: 4 / 3;
+          background: #f2f6f4;
+        }
+
+        .lc-img-src {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+          transition: transform 0.4s ease;
+        }
+
+        .lc:hover .lc-img-src {
+          transform: scale(1.06);
+        }
+
+        .lc-img-empty {
+          width: 100%;
+          height: 100%;
+          display: grid;
+          place-items: center;
+          background: linear-gradient(145deg, #eef5f1, #dde8e1);
+          color: #b5cfc0;
+          font-size: 2rem;
+        }
+
+        .lc-badge-verified {
+          position: absolute;
+          top: 12px;
+          left: 12px;
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          background: #2d6a4f;
+          color: #fff;
+          font-size: 0.68rem;
+          font-weight: 600;
+          padding: 5px 12px;
+          border-radius: 50px;
+          white-space: nowrap;
+          letter-spacing: 0.2px;
+        }
+
+        .lc-badge-verified i {
+          font-size: 0.62rem;
+        }
+
+        .lc-body {
+          padding: 18px 20px 20px;
+        }
+
+        .lc-title {
+          font-weight: 700;
+          font-size: 1.05rem;
+          color: #111;
+          margin: 0 0 14px;
+          line-height: 1.3;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .lc-info {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          margin-bottom: 16px;
+        }
+
+        .lc-info-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 0.82rem;
+          color: #666;
+        }
+
+        .lc-info-row i {
+          color: #2d6a4f;
+          font-size: 0.78rem;
+          width: 16px;
+          text-align: center;
+        }
+
+        .lc-divider {
+          height: 1px;
+          background: #eee;
+          margin-bottom: 16px;
+        }
+
+        .lc-footer {
+          display: flex;
+          align-items: flex-end;
+          justify-content: space-between;
+          gap: 10px;
+        }
+
+        .lc-price-block {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .lc-price-label {
+          font-size: 0.68rem;
+          font-weight: 700;
+          color: #999;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin-bottom: 2px;
+        }
+
+        .lc-price-value {
+          font-weight: 800;
+          font-size: 1.3rem;
+          color: #1b4332;
+          line-height: 1;
+        }
+
+        .lc-btn {
+          display: inline-flex;
+          align-items: center;
+          background: #1b4332;
+          color: #fff;
+          font-size: 0.78rem;
+          font-weight: 600;
+          padding: 8px 18px;
+          border-radius: 50px;
+          text-decoration: none;
+          white-space: nowrap;
+          transition: background 0.2s ease, transform 0.2s ease;
+        }
+
+        .lc-btn:hover {
+          background: #245a3e;
+          color: #fff;
+          transform: scale(1.03);
+        }
+
+        @media (max-width: 575px) {
+          .lc-body {
+            padding: 14px 14px 16px;
+          }
+          .lc-title {
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+          }
+          .lc-info-row {
+            font-size: 0.75rem;
+          }
+          .lc-price-value {
+            font-size: 1.1rem;
+          }
+          .lc-btn {
+            font-size: 0.7rem;
+            padding: 6px 12px;
+          }
+          .lc-badge-verified {
+            font-size: 0.6rem;
+            padding: 4px 9px;
+            top: 8px;
+            left: 8px;
+          }
         }
       `}</style>
 

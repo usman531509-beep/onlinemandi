@@ -18,12 +18,62 @@ type Category = {
   group: string;
 };
 
+const AVAILABLE_ICONS = [
+  // Crops & Grains
+  { value: "fa-wheat-awn", label: "Wheat / Grain" },
+  { value: "fa-bowl-rice", label: "Rice / Chawal" },
+  { value: "fa-seedling", label: "Maize / Corn" },
+  { value: "fa-plant-wilt", label: "Sugarcane / Crop" },
+  { value: "fa-leaf", label: "Cotton / Leaf" },
+  { value: "fa-pagelines", label: "Barley / Oats", brand: true },
+  { value: "fa-spa", label: "Mustard / Canola" },
+  { value: "fa-tree", label: "Tree / Timber" },
+  // Fruits
+  { value: "fa-lemon", label: "Citrus / Kinnow" },
+  { value: "fa-apple-whole", label: "Apple / Seb" },
+  { value: "fa-cherry", label: "Cherry / Berries" },
+  { value: "fa-stroopwafel", label: "Watermelon / Melon" },
+  { value: "fa-circle", label: "Mango / Orange" },
+  { value: "fa-wine-glass", label: "Grapes / Angoor" },
+  { value: "fa-fan", label: "Banana / Kela" },
+  { value: "fa-droplet", label: "Pomegranate / Anaar" },
+  // Vegetables
+  { value: "fa-carrot", label: "Carrot / Gajar" },
+  { value: "fa-pepper-hot", label: "Chilli / Mirch" },
+  { value: "fa-fire", label: "Tomato / Tamatar" },
+  { value: "fa-circle-dot", label: "Potato / Aloo" },
+  { value: "fa-ring", label: "Onion / Piaz" },
+  { value: "fa-sun", label: "Pumpkin / Kaddu" },
+  { value: "fa-broccoli", label: "Broccoli / Gobi" },
+  { value: "fa-cubes-stacked", label: "Okra / Bhindi" },
+  { value: "fa-clover", label: "Spinach / Palak" },
+  // Pulses & Spices
+  { value: "fa-jar", label: "Pulses / Dalain" },
+  { value: "fa-mortar-pestle", label: "Spices / Masala" },
+  { value: "fa-bowl-food", label: "Chana / Beans" },
+  // Dry Fruits & Nuts
+  { value: "fa-cashew", label: "Nuts / Dry Fruit" },
+  { value: "fa-cookie", label: "Peanut / Moongphali" },
+  // Livestock & Dairy
+  { value: "fa-cow", label: "Cow / Dairy" },
+  { value: "fa-fish", label: "Fish / Machhi" },
+  { value: "fa-egg", label: "Egg / Poultry" },
+  { value: "fa-drumstick-bite", label: "Meat / Gosht" },
+  // General Trade
+  { value: "fa-truck-ramp-box", label: "Truck / Trade" },
+  { value: "fa-box-open", label: "Box / Package" },
+  { value: "fa-basket-shopping", label: "Basket / Market" },
+  { value: "fa-store", label: "Store / Dukaan" },
+  { value: "fa-weight-hanging", label: "Weight / Wazn" },
+];
+
 function SettingsContent({ sessionUser }: { sessionUser: SessionUser }) {
   const { t } = useTranslation();
   const [freeListingLimit, setFreeListingLimit] = useState<number>(5);
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
-  
+  const [categoryIcons, setCategoryIcons] = useState<Record<string, string>>({});
+
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -33,22 +83,28 @@ function SettingsContent({ sessionUser }: { sessionUser: SessionUser }) {
     setMessage("");
 
     try {
-      const [limitRes, visibilityRes, catsRes] = await Promise.all([
+      const [limitRes, visibilityRes, iconsRes, catsRes] = await Promise.all([
         fetch("/api/settings?key=freeListingLimit", { cache: "no-store" }),
         fetch("/api/settings?key=homePageCategories", { cache: "no-store" }),
+        fetch("/api/settings?key=categoryIcons", { cache: "no-store" }),
         fetch("/api/categories", { cache: "no-store" })
       ]);
 
       const limitData = await limitRes.json();
       const visibilityData = await visibilityRes.json();
+      const iconsData = await iconsRes.json();
       const catsData = await catsRes.json();
 
       if (limitData.ok && limitData.setting) {
         setFreeListingLimit(limitData.setting.value);
       }
-      
+
       if (visibilityData.ok && visibilityData.setting) {
         setSelectedCategoryIds(visibilityData.setting.value || []);
+      }
+
+      if (iconsData.ok && iconsData.setting) {
+        setCategoryIcons(iconsData.setting.value || {});
       }
 
       if (catsData.ok && catsData.categories) {
@@ -109,6 +165,23 @@ function SettingsContent({ sessionUser }: { sessionUser: SessionUser }) {
 
       if (!response.ok || !data.ok) {
         setMessage(data.message || "Failed to save visibility settings.");
+        return;
+      }
+
+      // Save Category Icons
+      const iconsResponse = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: sessionUser.id,
+          key: "categoryIcons",
+          value: categoryIcons,
+        }),
+      });
+
+      const iconsData = await iconsResponse.json();
+      if (!iconsResponse.ok || !iconsData.ok) {
+        setMessage(iconsData.message || "Failed to save category icons.");
         return;
       }
 
@@ -189,15 +262,31 @@ function SettingsContent({ sessionUser }: { sessionUser: SessionUser }) {
                                         </h4>
                                         <div className="d-flex flex-column gap-2">
                                             {cats.sort((a, b) => a.name.localeCompare(b.name)).map(cat => (
-                                                <label className="d-flex align-items-center gap-2 cursor-pointer py-1" key={cat.id} style={{ cursor: 'pointer' }}>
-                                                    <input 
-                                                        type="checkbox" 
-                                                        className="form-check-input mt-0"
+                                                <div className="d-flex align-items-center gap-2 py-1" key={cat.id}>
+                                                    <input
+                                                        type="checkbox"
+                                                        className="form-check-input mt-0 flex-shrink-0"
                                                         checked={selectedCategoryIds.includes(cat.id)}
                                                         onChange={() => toggleCategory(cat.id)}
+                                                        id={`cat-${cat.id}`}
+                                                        style={{ cursor: 'pointer' }}
                                                     />
-                                                    <span className="small">{cat.name}</span>
-                                                </label>
+                                                    <label htmlFor={`cat-${cat.id}`} className="small mb-0 flex-grow-1" style={{ cursor: 'pointer' }}>{cat.name}</label>
+                                                    <div className="d-flex align-items-center gap-1 flex-shrink-0">
+                                                        <i className={`${categoryIcons[cat.id] === "fa-pagelines" ? "fa-brands" : "fa-solid"} ${categoryIcons[cat.id] || "fa-basket-shopping"} text-muted`} style={{ width: 18, textAlign: "center" }}></i>
+                                                        <select
+                                                            className="form-select form-select-sm"
+                                                            style={{ width: 110, fontSize: "0.75rem", padding: "2px 6px" }}
+                                                            value={categoryIcons[cat.id] || ""}
+                                                            onChange={(e) => setCategoryIcons(prev => ({ ...prev, [cat.id]: e.target.value }))}
+                                                        >
+                                                            <option value="">Default</option>
+                                                            {AVAILABLE_ICONS.map(icon => (
+                                                                <option key={icon.value} value={icon.value}>{icon.label}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                </div>
                                             ))}
                                         </div>
                                     </div>

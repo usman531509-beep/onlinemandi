@@ -40,13 +40,32 @@ type Category = {
 };
 
 function getCategoryIcon(name: string) {
-  const value = name.toLowerCase();
-  if (value.includes("wheat")) return "fa-wheat-awn";
-  if (value.includes("rice")) return "fa-bowl-rice";
-  if (value.includes("maize") || value.includes("corn")) return "fa-seedling";
-  if (value.includes("citrus") || value.includes("orange")) return "fa-lemon";
-  if (value.includes("potato")) return "fa-carrot";
-  return "fa-truck-ramp-box";
+  const v = name.toLowerCase();
+  // Crops
+  if (v.includes("wheat") || v.includes("grain")) return "fa-wheat-awn";
+  if (v.includes("rice") || v.includes("chawal")) return "fa-bowl-rice";
+  if (v.includes("maize") || v.includes("corn") || v.includes("maka")) return "fa-seedling";
+  if (v.includes("cotton") || v.includes("kapas")) return "fa-leaf";
+  if (v.includes("sugar") || v.includes("ganna")) return "fa-plant-wilt";
+  // Fruits
+  if (v.includes("citrus") || v.includes("orange") || v.includes("kinnow") || v.includes("lemon")) return "fa-lemon";
+  if (v.includes("apple") || v.includes("seb")) return "fa-apple-whole";
+  if (v.includes("mango") || v.includes("aam")) return "fa-lemon";
+  if (v.includes("fruit") || v.includes("phal")) return "fa-apple-whole";
+  if (v.includes("cherry") || v.includes("berry")) return "fa-cherry";
+  // Vegetables
+  if (v.includes("potato") || v.includes("aloo") || v.includes("carrot") || v.includes("gajar")) return "fa-carrot";
+  if (v.includes("onion") || v.includes("piaz") || v.includes("vegetable") || v.includes("sabz")) return "fa-carrot";
+  if (v.includes("pepper") || v.includes("mirch") || v.includes("chilli")) return "fa-pepper-hot";
+  if (v.includes("tomato") || v.includes("tamatar")) return "fa-pepper-hot";
+  // Pulses & Spices
+  if (v.includes("pulse") || v.includes("dal") || v.includes("chana") || v.includes("bean") || v.includes("pea") || v.includes("lentil") || v.includes("masoor") || v.includes("moong")) return "fa-jar";
+  if (v.includes("spice") || v.includes("masala")) return "fa-mortar-pestle";
+  // Livestock
+  if (v.includes("milk") || v.includes("dairy") || v.includes("cow")) return "fa-cow";
+  if (v.includes("fish") || v.includes("machhi")) return "fa-fish";
+  if (v.includes("egg") || v.includes("poultry") || v.includes("anda")) return "fa-egg";
+  return "fa-basket-shopping";
 }
 
 export default function Home() {
@@ -58,6 +77,7 @@ export default function Home() {
   const [plans, setPlans] = useState<any[]>([]);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [activeSubscription, setActiveSubscription] = useState<any>(null);
+  const [categoryIcons, setCategoryIcons] = useState<Record<string, string>>({});
 
   const [groupFilter, setGroupFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -67,17 +87,23 @@ export default function Home() {
   useEffect(() => {
     const loadHomeData = async () => {
       try {
-        const [listingsRes, categoriesRes, plansRes, settingsRes] = await Promise.all([
+        const [listingsRes, categoriesRes, plansRes, settingsRes, iconsRes] = await Promise.all([
           fetch("/api/listings"),
           fetch("/api/categories"),
           fetch("/api/plans"),
-          fetch("/api/settings?key=homePageCategories", { cache: "no-store" })
+          fetch("/api/settings?key=homePageCategories", { cache: "no-store" }),
+          fetch("/api/settings?key=categoryIcons", { cache: "no-store" })
         ]);
 
         const listingsJson = await listingsRes.json();
         const categoriesJson = await categoriesRes.json();
         const plansJson = await plansRes.json();
         const settingsJson = await settingsRes.json();
+        const iconsJson = await iconsRes.json();
+
+        if (iconsJson.ok && iconsJson.setting?.value) {
+          setCategoryIcons(iconsJson.setting.value);
+        }
 
         if (listingsRes.ok && listingsJson.ok) {
           setListings(listingsJson.listings || []);
@@ -278,7 +304,7 @@ export default function Home() {
                   className={`category-card w-100 ${categoryFilter === category.name ? "active-category" : ""}`}
                   onClick={() => filterByCategory(category.name)}
                 >
-                  <i className={`fa-solid ${getCategoryIcon(category.name)} fa-3x`}></i>
+                  <i className={`${(categoryIcons[category.id] || getCategoryIcon(category.name)) === "fa-pagelines" ? "fa-brands" : "fa-solid"} ${categoryIcons[category.id] || getCategoryIcon(category.name)} fa-3x`}></i>
                   <br />
                   <b>{category.name}</b>
                 </button>
@@ -373,8 +399,21 @@ export default function Home() {
                 </div>
               </div>
             </div>
-            <div id="listing-status" className="mb-3 text-muted small">
-              {filteredProducts.length} {t("home.productsFound")}
+            <div id="listing-status" className="mb-3 d-flex align-items-center justify-content-between">
+              <span className="text-muted small">{filteredProducts.length} {t("home.productsFound")}</span>
+              {(groupFilter !== "all" || categoryFilter !== "all" || cityFilter !== "all" || gradeFilter !== "all") && (
+                <button
+                  className="btn btn-sm btn-outline-danger rounded-pill px-3"
+                  onClick={() => {
+                    setGroupFilter("all");
+                    setCategoryFilter("all");
+                    setCityFilter("all");
+                    setGradeFilter("all");
+                  }}
+                >
+                  <i className="fa-solid fa-xmark me-1"></i> {t("mundi.clearFilters")}
+                </button>
+              )}
             </div>
             <div className="row g-3" id="product-listings-grid">
               {filteredProducts.length === 0 ? (
@@ -383,45 +422,57 @@ export default function Home() {
                 </div>
               ) : (
                 filteredProducts.map((product) => (
-                  <div className="col-md-4" key={product.id}>
-                    <div className="card shadow-sm h-100">
-                      {product.images?.[0] ? (
-                        <Image
-                          src={product.images[0]}
-                          alt={product.title}
-                          width={640}
-                          height={260}
-                          unoptimized
-                          className="listing-card-cover"
-                        />
-                      ) : (
-                        <div className="listing-card-cover listing-card-cover-empty">
-                          <i className="fa-regular fa-image"></i>
-                        </div>
-                      )}
-                      <div className="card-body">
-                        <div className="d-flex align-items-center gap-2 mb-2 flex-wrap">
-                          <span className={`badge ${product.createdBy?.role === "admin" ? "bg-dark" : "bg-primary"}`}>
-                            {product.createdBy?.role === "admin" ? t("home.adminListing") : t("home.sellerListing")}
+                  <div className="col-6 col-md-4 col-xl-3" key={product.id}>
+                    <div className="lc h-100">
+                      {/* Image */}
+                      <div className="lc-img">
+                        {product.images?.[0] ? (
+                          <Image
+                            src={product.images[0]}
+                            alt={product.title}
+                            width={400}
+                            height={300}
+                            unoptimized
+                            className="lc-img-src"
+                          />
+                        ) : (
+                          <div className="lc-img-empty">
+                            <i className="fa-solid fa-wheat-awn"></i>
+                          </div>
+                        )}
+                        {product.createdBy?.verificationStatus === "verified" && (
+                          <span className="lc-badge-verified">
+                            <i className="fa-solid fa-circle-check"></i> {t("home.verifiedSeller")}
                           </span>
-                          {product.createdBy?.verificationStatus === "verified" && (
-                            <span className="badge verified-badge">
-                              <i className="fa-solid fa-circle-check me-1"></i>{t("home.verifiedSeller")}
-                            </span>
-                          )}
+                        )}
+                      </div>
+
+                      {/* Body */}
+                      <div className="lc-body">
+                        <h6 className="lc-title">{product.title}</h6>
+
+                        <div className="lc-info">
+                          <div className="lc-info-row">
+                            <i className="fa-solid fa-location-dot"></i>
+                            <span>{product.city}</span>
+                          </div>
+                          <div className="lc-info-row">
+                            <i className="fa-solid fa-calendar-days"></i>
+                            <span>{new Date(product.createdAt).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</span>
+                          </div>
                         </div>
-                        <h5>{product.title}</h5>
-                        <p className="text-muted small mb-1">
-                          <i className="fa-solid fa-map-marker-alt"></i> {product.city}
-                        </p>
-                        <p className="text-muted small">
-                          <i className="fa-solid fa-clock"></i> {new Date(product.createdAt).toLocaleString()}
-                        </p>
-                        <h4 className="text-success fw-bold">PKR {product.pricePerMaund.toLocaleString()} {t("home.perMaund")}</h4>
-                        <hr />
-                        <Link className="btn btn-mundi w-100" href={`/listing/${product.id}`}>
-                          {t("home.viewDetails")}
-                        </Link>
+
+                        <div className="lc-divider"></div>
+
+                        <div className="lc-footer">
+                          <div className="lc-price-block">
+                            <span className="lc-price-label">{t("home.perMaund").toUpperCase()}</span>
+                            <span className="lc-price-value">{product.pricePerMaund.toLocaleString()}</span>
+                          </div>
+                          <Link href={`/listing/${product.id}`} className="lc-btn">
+                            {t("home.viewDetails")}
+                          </Link>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -637,20 +688,192 @@ export default function Home() {
           margin-bottom: 10px;
         }
 
-        .listing-card-cover {
-          width: 100%;
-          height: 180px;
-          object-fit: cover;
-          border-radius: 0.5rem 0.5rem 0 0;
-          border-bottom: 1px solid #dce7e2;
-          display: block;
+        /* ===== Listing Cards ===== */
+        .lc {
+          background: #fff;
+          border-radius: 24px;
+          overflow: hidden;
+          box-shadow: 0 2px 16px rgba(0,0,0,0.05);
+          transition: transform 0.25s ease, box-shadow 0.25s ease;
         }
 
-        .listing-card-cover-empty {
+        .lc:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 12px 36px rgba(0,0,0,0.1);
+        }
+
+        /* Image — 55% height feel */
+        .lc-img {
+          position: relative;
+          overflow: hidden;
+          aspect-ratio: 4 / 3;
+          background: #f2f6f4;
+        }
+
+        .lc-img-src {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+          transition: transform 0.4s ease;
+        }
+
+        .lc:hover .lc-img-src {
+          transform: scale(1.06);
+        }
+
+        .lc-img-empty {
+          width: 100%;
+          height: 100%;
           display: grid;
           place-items: center;
-          background: #f2f7f4;
-          color: #7b8f84;
+          background: linear-gradient(145deg, #eef5f1, #dde8e1);
+          color: #b5cfc0;
+          font-size: 2rem;
+        }
+
+        /* Verified badge on image */
+        .lc-badge-verified {
+          position: absolute;
+          top: 12px;
+          left: 12px;
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          background: #2d6a4f;
+          color: #fff;
+          font-size: 0.68rem;
+          font-weight: 600;
+          padding: 5px 12px;
+          border-radius: 50px;
+          white-space: nowrap;
+          letter-spacing: 0.2px;
+        }
+
+        .lc-badge-verified i {
+          font-size: 0.62rem;
+        }
+
+        /* Body */
+        .lc-body {
+          padding: 18px 20px 20px;
+        }
+
+        .lc-title {
+          font-weight: 700;
+          font-size: 1.05rem;
+          color: #111;
+          margin: 0 0 14px;
+          line-height: 1.3;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        /* Info rows */
+        .lc-info {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          margin-bottom: 16px;
+        }
+
+        .lc-info-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 0.82rem;
+          color: #666;
+        }
+
+        .lc-info-row i {
+          color: #2d6a4f;
+          font-size: 0.78rem;
+          width: 16px;
+          text-align: center;
+        }
+
+        /* Divider */
+        .lc-divider {
+          height: 1px;
+          background: #eee;
+          margin-bottom: 16px;
+        }
+
+        /* Footer — price + button */
+        .lc-footer {
+          display: flex;
+          align-items: flex-end;
+          justify-content: space-between;
+          gap: 10px;
+        }
+
+        .lc-price-block {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .lc-price-label {
+          font-size: 0.68rem;
+          font-weight: 700;
+          color: #999;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin-bottom: 2px;
+        }
+
+        .lc-price-value {
+          font-weight: 800;
+          font-size: 1.3rem;
+          color: var(--primary-green);
+          line-height: 1;
+        }
+
+        .lc-btn {
+          display: inline-flex;
+          align-items: center;
+          background: var(--primary-green);
+          color: #fff;
+          font-size: 0.78rem;
+          font-weight: 600;
+          padding: 8px 18px;
+          border-radius: 50px;
+          text-decoration: none;
+          white-space: nowrap;
+          transition: background 0.2s ease, transform 0.2s ease;
+        }
+
+        .lc-btn:hover {
+          background: #245a3e;
+          color: #fff;
+          transform: scale(1.03);
+        }
+
+        /* Mobile */
+        @media (max-width: 575px) {
+          .lc-body {
+            padding: 14px 14px 16px;
+          }
+          .lc-title {
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+          }
+          .lc-info-row {
+            font-size: 0.75rem;
+          }
+          .lc-price-value {
+            font-size: 1.1rem;
+          }
+          .lc-btn {
+            font-size: 0.7rem;
+            padding: 6px 12px;
+          }
+          .lc-badge-verified {
+            font-size: 0.6rem;
+            padding: 4px 9px;
+            top: 8px;
+            left: 8px;
+          }
         }
 
         .btn-mundi {
