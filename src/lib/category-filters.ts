@@ -14,7 +14,7 @@ export function normalizeGroupName(group?: string) {
 }
 
 export function getGroupOptions(categories: CategoryFilterItem[]) {
-  return Array.from(new Set(categories.map((category) => normalizeGroupName(category.group)))).sort();
+  return Array.from(new Set(categories.map((category) => normalizeGroupName(category.group)))).filter(Boolean).sort();
 }
 
 export function getCategoryOptionsForGroup(categories: CategoryFilterItem[], selectedGroup: string) {

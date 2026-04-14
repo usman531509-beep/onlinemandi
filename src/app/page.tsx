@@ -78,6 +78,7 @@ export default function Home() {
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [activeSubscription, setActiveSubscription] = useState<any>(null);
   const [categoryIcons, setCategoryIcons] = useState<Record<string, string>>({});
+  const [groupNames, setGroupNames] = useState<string[]>([]);
 
   const [groupFilter, setGroupFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -87,12 +88,13 @@ export default function Home() {
   useEffect(() => {
     const loadHomeData = async () => {
       try {
-        const [listingsRes, categoriesRes, plansRes, settingsRes, iconsRes] = await Promise.all([
+        const [listingsRes, categoriesRes, plansRes, settingsRes, iconsRes, groupsRes] = await Promise.all([
           fetch("/api/listings"),
           fetch("/api/categories"),
           fetch("/api/plans"),
           fetch("/api/settings?key=homePageCategories", { cache: "no-store" }),
-          fetch("/api/settings?key=categoryIcons", { cache: "no-store" })
+          fetch("/api/settings?key=categoryIcons", { cache: "no-store" }),
+          fetch("/api/groups")
         ]);
 
         const listingsJson = await listingsRes.json();
@@ -100,9 +102,14 @@ export default function Home() {
         const plansJson = await plansRes.json();
         const settingsJson = await settingsRes.json();
         const iconsJson = await iconsRes.json();
+        const groupsJson = await groupsRes.json();
 
         if (iconsJson.ok && iconsJson.setting?.value) {
           setCategoryIcons(iconsJson.setting.value);
+        }
+
+        if (groupsJson.ok && groupsJson.groups) {
+          setGroupNames(groupsJson.groups.map((g: { name: string }) => g.name).sort());
         }
 
         if (listingsRes.ok && listingsJson.ok) {
@@ -212,7 +219,10 @@ export default function Home() {
   };
 
 
-  const groupOptions = useMemo(() => getGroupOptions(categories), [categories]);
+  const groupOptions = useMemo(() => {
+    if (groupNames.length > 0) return groupNames;
+    return getGroupOptions(categories);
+  }, [groupNames, categories]);
 
   const categoryOptions = useMemo(() => {
     return getCategoryOptionsForGroup(categories, groupFilter);

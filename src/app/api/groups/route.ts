@@ -12,11 +12,19 @@ export async function GET(request: Request) {
     const userId = searchParams.get("userId");
     const role = searchParams.get("role") as GroupRole | null;
 
-    if (!userId || !role) {
-      return NextResponse.json({ ok: false, message: "Missing credentials." }, { status: 400 });
-    }
-
     await connectToDatabase();
+
+    // Public access: return group names only (no auto-fix)
+    if (!userId || !role) {
+      const groups = await Group.find().sort({ createdAt: -1 }).lean();
+      return NextResponse.json({
+        ok: true,
+        groups: groups.map(g => ({
+          id: String(g._id),
+          name: g.name,
+        })),
+      });
+    }
 
     const user = await User.findById(userId);
     if (!user || user.role !== role || (role !== "admin" && role !== "seller")) {
@@ -38,19 +46,6 @@ export async function GET(request: Request) {
             });
             console.log(`Auto-created missing group: ${catGroupName}`);
         }
-    }
-
-    // AUTO-FIX: Assign groupless categories to the first available group
-    const firstGroup = existingGroups[0] || await Group.findOne().sort({ createdAt: 1 });
-    if (firstGroup) {
-      const orphaned = await Category.countDocuments({ $or: [{ group: "" }, { group: null }, { group: { $exists: false } }] });
-      if (orphaned > 0) {
-        await Category.updateMany(
-          { $or: [{ group: "" }, { group: null }, { group: { $exists: false } }] },
-          { $set: { group: firstGroup.name } }
-        );
-        console.log(`Auto-assigned ${orphaned} groupless categories to group: ${firstGroup.name}`);
-      }
     }
 
     // Re-fetch all groups after potentially auto-creating missing ones
